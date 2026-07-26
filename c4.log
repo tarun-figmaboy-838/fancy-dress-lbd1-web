@@ -1,0 +1,75 @@
+
+DevTools listening on ws://127.0.0.1:9224/devtools/browser/18d23556-ad16-4de3-a28a-8e3f771d060d
+[8972:7052:0726/223120.487:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR
+[8972:7052:0726/223120.487:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR
+Created TensorFlow Lite XNNPACK delegate for CPU.
+[8972:7052:0726/223144.086:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[8972:7052:0726/223229.305:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[8972:7052:0726/223416.200:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[8972:10972:0726/223509.836:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.047 s
+[8972:10972:0726/223519.949:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.048 s
+[8972:10972:0726/223520.055:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223520.213:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223520.588:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223521.655:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223522.090:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223522.203:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223522.419:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223522.537:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223523.136:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223523.255:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223523.568:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223524.118:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223524.318:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223524.454:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223524.802:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223525.407:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:10972:0726/223525.715:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.05 s for first_contentful_paint 0.048 s
+[8972:7052:0726/223707.499:ERROR:google_apis\gcm\engine\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT
+[8972:10972:0726/223844.644:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.052 s
+[8972:10972:0726/223847.663:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.048 s
+[8972:10972:0726/223850.676:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.053 s
+[8972:10972:0726/223850.779:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223850.930:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223851.318:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223852.400:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223852.823:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223852.950:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223853.096:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223853.627:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.054 s for first_contentful_paint 0.053 s
+[8972:10972:0726/223853.700:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.053 s
+[8972:10972:0726/223856.715:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.051 s
+[8972:10972:0726/223943.880:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.07 s
+[8972:10972:0726/224002.305:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.05 s
+[8972:10972:0726/224007.819:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.053 s
+[8972:10972:0726/224007.919:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224008.070:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224008.471:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224009.515:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224009.950:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224010.091:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224010.277:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224010.993:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224011.503:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224011.976:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224012.300:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224012.425:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224012.818:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.055 s for first_contentful_paint 0.053 s
+[8972:10972:0726/224017.940:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.05 s
+[8972:10972:0726/224023.409:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.051 s
+[8972:10972:0726/224028.454:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint (unset) for first_contentful_paint 0.051 s
+[8972:10972:0726/224028.558:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224028.718:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224029.115:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224030.183:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224030.588:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224030.710:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224030.926:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224031.625:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224031.752:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224032.105:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224032.605:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224032.708:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224032.933:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224033.056:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s
+[8972:10972:0726/224033.441:ERROR:components\page_load_metrics\browser\page_load_metrics_update_dispatcher.cc:187] Invalid first_paint 0.052 s for first_contentful_paint 0.051 s

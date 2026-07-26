@@ -1,0 +1,141 @@
+/* Fancy Dress Lbd1 — static web build */
+@font-face {
+  font-family: 'Lilita One';
+  src: url('../assets/fonts/LilitaOne-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: block;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: #000; overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+
+#game { position: fixed; inset: 0; overflow: hidden; }
+
+/* the Unity Canvas: sized to screen/scaleFactor, then scaled to fill */
+#stage {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+/* every GameObject with a RectTransform */
+.un {
+  position: absolute;
+  transform-origin: 50% 50%;
+}
+
+/* Image — the sprite is its own layer, so Unity's Image.color alpha tints this
+   graphic alone and never fades the node's children (see applyImage). */
+.un.img::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--gfx, none);
+  background-size: var(--gfxFit, 100% 100%);
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--gfxAlpha, 1);
+  pointer-events: none;
+}
+
+/* Image.raycastPadding — the real pointer target */
+.hit { position: absolute; }
+
+/* TextMeshPro — .tmp-inner is the text area, offset by the TMP margins */
+.un.tmp { overflow: visible; }
+.tmp-inner { position: absolute; display: flex; }
+
+.un.btn { cursor: pointer; }
+.un.btn.nointeract { cursor: default; }
+
+/* A draggable item advertises itself. Its Button is deliberately made
+   non-interactable while the item is meant to be dragged, so .nointeract would
+   otherwise show a plain arrow at exactly the moment the child should grab it. */
+.un.draggable,
+.un.btn.nointeract.draggable { cursor: grab; }
+body.dragging, body.dragging .un, body.dragging .hit,
+body.dragging .un.draggable,
+body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
+
+/* Button ColorTint transition approximation on press */
+.un.btn.pressed { filter: brightness(0.92); }
+
+/* ---- guidance: the dashed drag path draws itself in, then glows ----------- */
+/* Applied to the Vector_10 arrow. Both the reveal and the glow live on the
+   ::before sprite layer so they never fight the inline rotate/scale the engine
+   writes on the element itself (the right-hand copy is mirrored with scale -1,
+   and the clip travels with it). */
+.un.dashPath::before {
+  animation: dash-draw .9s steps(14, end) both,
+             dash-glow 1.6s ease-in-out .9s infinite;
+}
+@keyframes dash-draw {
+  from { clip-path: inset(100% 0 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+@keyframes dash-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(130, 240, 255, .45)); }
+  50%      { filter: drop-shadow(0 0 16px rgba(130, 240, 255, .95)) brightness(1.18); }
+}
+
+/* ---- a short pop when an item is chosen, for a bit of gamified feedback --- */
+.un.tapPop::before { animation: tap-pop .38s cubic-bezier(.2, 1.5, .4, 1) 1; }
+@keyframes tap-pop {
+  0%   { transform: scale(1);    filter: brightness(1); }
+  40%  { transform: scale(1.13); filter: brightness(1.25); }
+  70%  { transform: scale(.97); }
+  100% { transform: scale(1);    filter: brightness(1); }
+}
+
+/* ---- confetti burst (CSS stand-in for the ConfettiBlast ParticleSystem) --- */
+.confetti-layer { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 50; }
+
+/* paper: squares, strips, dots and stars, thrown upward and pulled down */
+.confetti-layer i {
+  position: absolute; left: 0; top: 0; display: block;
+  margin-left: -6px; margin-top: -6px;
+  animation: confetti-fly var(--dur, 1.3s) cubic-bezier(.12, .62, .3, 1) var(--delay, 0s) forwards;
+}
+.confetti-layer i.sq    { border-radius: 2px; }
+.confetti-layer i.strip { border-radius: 3px; }
+.confetti-layer i.dot   { border-radius: 50%; }
+.confetti-layer i.star  {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+@keyframes confetti-fly {
+  0%   { transform: translate(0, 0) rotate(0) scale(.4); opacity: 0; }
+  12%  { opacity: 1; transform: translate(calc(var(--dx) * .18), calc(var(--dy) * .3)) rotate(60deg) scale(1.15); }
+  60%  { opacity: 1; }
+  100% { transform: translate(var(--dx), calc(var(--dy) + 560px)) rotate(var(--rot)) scale(.7);
+         opacity: 0; }
+}
+
+/* the pop: a warm flash and two rings racing outward from the burst point */
+.confetti-layer .burst {
+  position: absolute; left: -70px; top: -70px; width: 140px; height: 140px;
+  border-radius: 50%; display: block;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,214,102,.7) 40%, rgba(255,214,102,0) 70%);
+  animation: confetti-flash .5s ease-out forwards;
+}
+@keyframes confetti-flash {
+  0%   { transform: scale(.2); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.confetti-layer .ring {
+  position: absolute; left: -30px; top: -30px; width: 60px; height: 60px;
+  border-radius: 50%; display: block;
+  border: 6px solid rgba(255, 236, 150, .95);
+  animation: confetti-ring .75s cubic-bezier(.2, .8, .3, 1) var(--delay, 0s) forwards;
+}
+@keyframes confetti-ring {
+  0%   { transform: scale(.3); opacity: .95; border-width: 10px; }
+  100% { transform: scale(6.5); opacity: 0; border-width: 1px; }
+}
