@@ -197,3 +197,52 @@ body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
                rotate(var(--rotation, 200deg)) scale(var(--scale, 1));
   }
 }
+
+/* ---- piñata: swings in, takes a whack, bursts into the confetti shower ---- */
+/* Drawn in CSS so no new asset is needed: a striped star with a paper fringe,
+   hung from a string. It lives in the same #confetti-layer, above the scene. */
+#confetti-layer .pinata-string {
+  position: absolute; left: 50%; top: -40px;
+  width: 4px; height: 92px; margin-left: -2px;
+  background: linear-gradient(rgba(255,255,255,.9), rgba(255,255,255,.35));
+  border-radius: 2px;
+  transform-origin: 50% 0;
+  animation: pinata-hang 2.05s cubic-bezier(.36, .07, .3, 1) both;
+}
+#confetti-layer .pinata {
+  position: absolute; left: 50%; top: 40px;
+  width: 210px; height: 210px; margin-left: -105px;
+  transform-origin: 50% -30%;            /* swings from the string, not itself */
+  animation: pinata-hang 2.05s cubic-bezier(.36, .07, .3, 1) both,
+             pinata-pop  .34s cubic-bezier(.2, 1.6, .4, 1) 1.95s both;
+}
+/* the star body, in festive stripes */
+#confetti-layer .pinata i {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(48deg,
+    #ff5c8a 0 14px, #ffd23f 14px 28px, #3fc7c0 28px 42px, #a06cd5 42px 56px);
+  clip-path: polygon(50% 0, 62% 33%, 98% 35%, 70% 57%, 80% 95%, 50% 74%, 20% 95%, 30% 57%, 2% 35%, 38% 33%);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .25));
+}
+/* a paper fringe across the middle so it reads as a piñata, not just a star */
+#confetti-layer .pinata b {
+  position: absolute; left: 14%; right: 14%; top: 46%; height: 20%;
+  background: repeating-linear-gradient(90deg,
+    rgba(255,255,255,.85) 0 5px, rgba(255,255,255,0) 5px 11px);
+  clip-path: polygon(50% 0, 62% 33%, 98% 35%, 70% 57%, 80% 95%, 50% 74%, 20% 95%, 30% 57%, 2% 35%, 38% 33%);
+}
+
+@keyframes pinata-hang {
+  0%   { transform: translateY(-190px) rotate(0deg); opacity: 0; }
+  18%  { transform: translateY(0) rotate(-13deg);    opacity: 1; }
+  42%  { transform: translateY(0) rotate(11deg); }
+  63%  { transform: translateY(0) rotate(-7deg); }
+  81%  { transform: translateY(0) rotate(4deg); }
+  100% { transform: translateY(0) rotate(0deg);      opacity: 1; }
+}
+/* the whack: a quick squash, then it blows apart and hands over to the shower */
+@keyframes pinata-pop {
+  0%   { transform: translateY(0) rotate(0deg) scale(1);      opacity: 1; }
+  35%  { transform: translateY(0) rotate(-6deg) scale(1.22, .84); opacity: 1; }
+  100% { transform: translateY(-14px) rotate(8deg) scale(1.75); opacity: 0; }
+}

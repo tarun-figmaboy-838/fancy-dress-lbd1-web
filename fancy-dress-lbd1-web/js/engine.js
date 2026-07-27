@@ -1105,9 +1105,45 @@ var Engine = (function () {
     confettiTimer = setTimeout(clearConfetti, total + 1200);
   }
 
+  /* A piñata for the win moment: it drops on its string, swings a few times,
+     then takes a whack and blows apart — and the shower starts on that burst so
+     the confetti reads as coming out of it. Drawn in CSS (see .pinata), so no
+     new asset is needed. Skipped entirely under reduced motion. */
+  var PINATA_BURST_MS = 2150;      // must match the .pinata pop keyframe timing
+
+  function playPinataCelebration(opts) {
+    if (!stage) return;
+    var reduced = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (reduced) { playConfettiShower(opts); return; }
+
+    clearConfetti();
+    confettiLayer = document.createElement('div');
+    confettiLayer.id = 'confetti-layer';
+    confettiLayer.setAttribute('aria-hidden', 'true');
+    stage.appendChild(confettiLayer);
+
+    var string = document.createElement('u');
+    string.className = 'pinata-string';
+    confettiLayer.appendChild(string);
+
+    var pinata = document.createElement('div');
+    pinata.className = 'pinata';
+    pinata.appendChild(document.createElement('i'));   // striped star body
+    pinata.appendChild(document.createElement('b'));   // paper fringe
+    confettiLayer.appendChild(pinata);
+
+    /* The shower builds its own layer, so let the piñata finish first and hand
+       over on the burst. Tracked on confettiTimer so a second win cancels it. */
+    confettiTimer = setTimeout(function () {
+      confettiTimer = 0;
+      playConfettiShower(opts);
+    }, PINATA_BURST_MS);
+  }
+
   /* The scene's ConfettiBlast objects call through here; the burst position is
-     no longer used, the shower covers the stage. */
-  function confetti(nodeId, opts) { playConfettiShower(opts); }
+     no longer used, the celebration covers the stage. */
+  function confetti(nodeId, opts) { playPinataCelebration(opts); }
 
   /* pointer client coords -> stage coords (top-left origin, y DOWN) */
   function pointerToStage(ev) {
@@ -1159,7 +1195,8 @@ var Engine = (function () {
     wait: wait, waitUntil: waitUntil, tween: tween, loopScale: loopScale,
     Ease: Ease, add: add, remove: remove,
     Audio: Audio2, animator: animator, findByPath: findByPath,
-    confetti: confetti, playConfettiShower: playConfettiShower, CONFETTI: CONFETTI,
+    confetti: confetti, playConfettiShower: playConfettiShower,
+    playPinataCelebration: playPinataCelebration, CONFETTI: CONFETTI,
     pointerToStage: pointerToStage, stageRectYUp: stageRectYUp,
     localPointInRect: localPointInRect,
     stagePos: function (id) { var n = node(id); return n ? n.stagePos() : [0, 0]; },
