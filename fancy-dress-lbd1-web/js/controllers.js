@@ -120,6 +120,21 @@ var Controllers = (function () {
     node.el.classList.add('labelGlow', isHeavy ? 'heavy' : 'light');
   }
 
+  /* How much of the dragged item is over a pan, 0..1, with a dead zone so a
+     clipped corner does not tip the scale. */
+  function panInfluence(itemRect, panRect) {
+    var w = Math.max(0, Math.min(itemRect.right, panRect.right) - Math.max(itemRect.left, panRect.left));
+    var h = Math.max(0, Math.min(itemRect.bottom, panRect.bottom) - Math.max(itemRect.top, panRect.top));
+    /* Divide by the smaller of the two: this game's pan marker is much smaller
+       than the item, so measuring against the item area would cap the ratio
+       near 0.09 and the scale would never react. */
+    var itemArea = itemRect.width * itemRect.height;
+    var panArea = panRect.width * panRect.height;
+    var ratio = (w * h) / Math.max(1, Math.min(itemArea, panArea));
+    var THRESHOLD = 0.15;
+    return Math.max(0, Math.min(1, (ratio - THRESHOLD) / (1 - THRESHOLD)));
+  }
+
   /* A short pop on the item that was just chosen. The class drives the ::before
      sprite layer, so it composes with whatever rotate/scale the element itself
      carries; the reflow makes it replay on every tap. */
@@ -627,17 +642,48 @@ var Controllers = (function () {
       return true;
     }
 
+    var previewGame = null;
+
+    /* The scale reacts to the item's real overlap with a pan while it is being
+       dragged, and unwinds as it is dragged back out. */
+    function updateScalePreview() {
+      var zones = COMP['BasketDropZone'] || {};
+      var itemRect = n.el.getBoundingClientRect();
+      var best = null, bestInfluence = 0;
+      Object.keys(zones).forEach(function (k) {
+        var z = zones[k];
+        if (!E.activeInHierarchy(z.node)) return;
+        var zn = E.node(z.node);
+        if (!zn) return;
+        var inf = panInfluence(itemRect, zn.el.getBoundingClientRect());
+        if (inf > bestInfluence) { bestInfluence = inf; best = z; }
+      });
+      var gm = best ? get('WeightMeasuringGame', best.gameManager) : null;
+      if (gm && bestInfluence > 0) {
+        previewGame = gm;
+        gm.previewDrag(self.itemData, best.isLeftBasket, bestInfluence);
+      } else if (previewGame) {
+        previewGame.clearPreview();
+        previewGame = null;
+      }
+    }
+
+    function endScalePreview() {
+      if (previewGame) { previewGame.clearPreview(); previewGame = null; }
+    }
+
     function onDrag(ev, dx, dy) {
       if (!self.dragEnabled) return;
       var p = E.getAnchoredPos(self.node);
       E.setAnchoredPos(self.node, p[0] + dx, p[1] + dy);
       clampToCanvas();
+      updateScalePreview();
     }
 
     function onEndDrag(ev) {
       E.setBlocksRaycasts(self.node, true);
-      if (!self.dragEnabled || self.isLockedAfterDrop) return;
-      if (self.wasDroppedOnBasket) return;
+      if (!self.dragEnabled || self.isLockedAfterDrop) { endScalePreview(); return; }
+      if (self.wasDroppedOnBasket) { previewGame = null; return; }
 
       var pointer = E.pointerToStage(ev);
       var closest = null, closestDist = Infinity;
@@ -654,7 +700,8 @@ var Controllers = (function () {
         var d = Math.hypot(pointer[0] - bp[0], pointer[1] - bp[1]);
         if (d < closestDist) { closestDist = d; closest = b; }
       });
-      if (closest) { closest.forceDrop(self); return; }
+      if (closest) { previewGame = null; closest.forceDrop(self); return; }
+      endScalePreview();
       self.returnToOriginalPosition();
     }
 
@@ -876,6 +923,55 @@ var Controllers = (function () {
           return E.tween(backDur, 'OutSine', function (u) { apply(lerp(over, 1, u)); }, tok);
         });
     }
+
+    /* Continuous pose between level and fully tipped, so a drag can land
+       anywhere in between rather than snapping to a keyframe. */
+    function poseFor(balance) {
+      var end = balance > 0 ? POSE.left : POSE.right;
+      var t = Math.min(1, Math.abs(balance));
+      return {
+        beam: lerp(POSE.none.beam, end.beam, t),
+        needle: lerp(POSE.none.needle, end.needle, t),
+        left: lerp(POSE.none.left, end.left, t),
+        right: lerp(POSE.none.right, end.right, t)
+      };
+    }
+
+    function applyBalanceValue(balance) {
+      var p = poseFor(balance);
+      applyBeam(p.beam, p.left, p.right);
+      applyNeedle(p.needle);
+    }
+
+    /* The balance the real, settled weights imply. */
+    function settledBalance() {
+      var d = self.leftWeight - self.rightWeight;
+      var max = Math.max(0.001, self.leftWeight, self.rightWeight);
+      return Math.max(-1, Math.min(1, d / max));
+    }
+
+    /* Driven from the drag: the item counts for the fraction of it that is
+       over the pan, so the scale tracks the item instead of waiting for the
+       drop. Cancels any settling tween so the two cannot fight. */
+    self.previewDrag = function (itemData, isLeft, influence) {
+      if (!itemData) return;
+      animRunner.stop('anim');
+      var add = itemData.weight * influence;
+      var l = self.leftWeight + (isLeft ? add : 0);
+      var r = self.rightWeight + (isLeft ? 0 : add);
+      var d = l - r;
+      var max = Math.max(0.001, l, r);
+      applyBalanceValue(Math.max(-1, Math.min(1, d / max)));
+      self.isMoving = true;
+    };
+
+    /* Drag ended without a drop, or the item left the pan: fall back to what
+       the placed weights actually say. */
+    self.clearPreview = function () {
+      animRunner.stop('anim');
+      applyBalanceValue(settledBalance());
+      self.isMoving = false;
+    };
 
     function playAnimationForSide(side) {
       animRunner.stop('anim');
