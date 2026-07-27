@@ -451,12 +451,23 @@ var Engine = (function () {
     /* Unity's match=0.5 lands between fitting the width and fitting the height,
        so on anything that is not the authored 16:9 it scales past one of them
        and crops the game — on a phone held upright that threw away nearly half
-       the width. Clamp to the axis that fits: at 16:9 this changes nothing
-       (sw === sh), and everywhere else it keeps the whole design area on
-       screen, which is what the edge-anchored layout expects anyway. */
+       the width. Fit instead: scale to whichever axis runs out first. */
     s = Math.min(s, sw, sh);
     scaleFactor = s;
-    canvasSize = [vp.w / s, vp.h / s];
+
+    /* And hold the canvas at the design size rather than letting it grow to
+       screenSize / scale.
+
+       Growing it is what Unity does, and it is right for a layout built to
+       stretch: edge-anchored elements travel out to the new edges. This scene
+       is not that. The table, the backdrop band and the message bar are
+       anchored to the canvas edges while the balance and the trays sit at the
+       centre, so on a taller canvas the furniture walks away from the game —
+       at 870x971 the table detached and left a gap under the trays with the
+       pedestals floating above it. Pinning the canvas keeps the composition
+       exactly as it was authored at every aspect ratio; the room art behind the
+       stage covers whatever is left over (see #game::before). */
+    canvasSize = [scalerCfg.ref[0], scalerCfg.ref[1]];
     if (stage) {
       stage.style.width = canvasSize[0] + 'px';
       stage.style.height = canvasSize[1] + 'px';

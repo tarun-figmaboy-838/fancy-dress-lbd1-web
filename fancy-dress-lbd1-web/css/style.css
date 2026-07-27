@@ -15,7 +15,21 @@ html, body {
   touch-action: none; user-select: none; -webkit-user-select: none;
 }
 
-#game { position: fixed; inset: 0; overflow: hidden; }
+#game { position: fixed; inset: 0; overflow: hidden; background: #cfeae8; }
+
+/* The canvas is held at 1920x1080 and fitted, so on any other aspect ratio
+   there is space left over. Rather than black bars, carry the room on: the
+   scene's own backdrop, blown out and blurred so it reads as depth and never
+   competes with the game sitting on top of it. */
+#game::before {
+  content: '';
+  position: absolute; inset: -5%;
+  background: url('../assets/img/Slide_16_9_-_625.webp') center / cover no-repeat;
+  filter: blur(28px) saturate(1.05) brightness(1.02);
+  transform: scale(1.06);
+  z-index: 0;
+  pointer-events: none;
+}
 
 /* the Unity Canvas: sized to the safe area / scaleFactor, then scaled to fill.
    left/top are written by computeScale() so the game centres inside the safe
@@ -26,6 +40,7 @@ html, body {
   left: 50%; top: 50%;
   transform-origin: 50% 50%;
   will-change: transform;
+  z-index: 1;                 /* above the blurred surround */
 }
 
 /* ---- too tall and narrow to play: ask for landscape --------------------- */

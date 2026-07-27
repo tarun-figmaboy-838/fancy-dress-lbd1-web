@@ -80,15 +80,28 @@ wrong. The build reproduces Unity's log-space blend,
 `safeArea / scale` on every resize, so edge-anchored elements move with the
 aspect ratio exactly as they do in Unity.
 
-**…with one clamp, so it fits real screens.** `match = 0.5` lands the scale
-between fitting the width and fitting the height, which means that on anything
-that is not the authored 16:9 it scales past one of them and crops the game.
-Measured on a phone held upright it threw away 47% of the width — the item trays
-on both sides were simply off-screen. The scale is therefore clamped with
-`min(s, sw, sh)`. At 16:9 `sw === sh`, so this changes nothing at all on the
-design aspect; everywhere else it keeps the whole 1920×1080 design area on
-screen. Checked on 13 viewports from 360×640 to 4K: **no artwork off-screen on
-any of them** (before the clamp, every single one cropped).
+**…fitted, and with the canvas pinned to the design size.** Two separate things
+went wrong on anything that is not 16:9, and they need two separate fixes.
+
+*The scale.* `match = 0.5` lands between fitting the width and fitting the
+height, so it scales past one of them and crops. On a phone held upright it
+threw away 47% of the width — both item trays off-screen. The scale is now
+`min(s, sw, sh)`; at 16:9 `sw === sh` so the design aspect is untouched.
+
+*The canvas size.* Unity sets the canvas rect to `screenSize / scale`, which
+grows it on the axis with room to spare and sends edge-anchored elements out to
+the new edges. That is right for a layout built to stretch, and wrong for this
+one: the table, the backdrop band and the message bar are anchored to the canvas
+edges while the balance and the trays sit at the centre, so a taller canvas walks
+the furniture away from the game. At 870×971 the table detached completely and
+left the pedestals floating over a gap. The canvas is therefore held at
+1920×1080 and the whole thing is fitted and centred, so the composition is
+identical at every aspect ratio — measured: the tray-to-table offset is the same
+819 design px at 870×971, 1024×768, 1440×900, 2560×1080, 1200×1200 and 600×900.
+
+Whatever is left over is filled by `#game::before` — the scene's own backdrop,
+blown up and blurred, so the room appears to continue past the frame instead of
+showing black bars.
 
 **Safe area and the visual viewport.** The fit is computed against
 `visualViewport` where it exists — on iOS that is the honest visible height once

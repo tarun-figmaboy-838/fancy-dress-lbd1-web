@@ -155,6 +155,13 @@ and how big the things a child must hit end up.
 - ✅ **No artwork is cut off on any of the 13.** Before this pass every single
   one cropped — a phone held upright lost 47% of the width, and even 2560×1080
   lost 85 px off the top and 250 off the bottom.
+- ✅ **The composition is identical at every aspect ratio.** The canvas is
+  pinned to 1920×1080 and fitted, so the tray-to-table offset measures the same
+  819 design px at 870×971, 1024×768, 1440×900, 2560×1080, 1200×1200 and
+  600×900. Letting the canvas grow (Unity's behaviour) detached the table from
+  the trays at 870×971.
+- ✅ Leftover space is filled by the scene's own backdrop, blurred — no black
+  bars at any ratio.
 - ✅ Every landscape tap target clears the 44 px comfortable minimum.
 - ✅ The rotate prompt appears exactly where the game would otherwise be a thin
   strip, and never in landscape.
