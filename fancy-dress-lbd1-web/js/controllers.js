@@ -885,40 +885,26 @@ var Controllers = (function () {
       if (p.left) E.setAnchoredPos(p.left.id, null, left);
       if (p.right) E.setAnchoredPos(p.right.id, null, right);
     }
-    /* The authored Unity clip moves the needle as well as turning it, and the
-       two sides are deliberately asymmetric. These are the three keyframes
-       (anchoredPosition, rotation) straight from the scene. */
-    var NEEDLE_POSE = Object.freeze({
-      left:    { angle: -20, unityX: -11, unityY: -12.8 },
-      neutral: { angle: 0,   unityX: 0,   unityY: -16.8 },
-      right:   { angle: 20,  unityX: 8,   unityY: -22.8 }
-    });
+    /* A physical gauge needle turns about its bearing pin and nothing else: its
+       anchored position must never be animated. Interpolating the clip's
+       positional keyframes here slid the whole needle across the housing and
+       carried the white bearing dot with it, so only rotation is applied. The
+       pin itself is the node's pivot (0.5, 0.12 -> transform-origin 50% 88%). */
     var needleBase = null;
 
-    /* Piecewise because the poses are not symmetrical: a single formula would
-       reproduce neither side. Returns the offset from the neutral keyframe. */
-    function needlePose(angle) {
-      var a = Math.max(-20, Math.min(20, angle));
-      var x, y;
-      if (a < 0) {
-        var t = (a + 20) / 20;
-        x = lerp(NEEDLE_POSE.left.unityX, NEEDLE_POSE.neutral.unityX, t);
-        y = lerp(NEEDLE_POSE.left.unityY, NEEDLE_POSE.neutral.unityY, t);
-      } else {
-        var u = a / 20;
-        x = lerp(NEEDLE_POSE.neutral.unityX, NEEDLE_POSE.right.unityX, u);
-        y = lerp(NEEDLE_POSE.neutral.unityY, NEEDLE_POSE.right.unityY, u);
-      }
-      return { x: x, y: y - NEEDLE_POSE.neutral.unityY };   // Unity y-up offset
+    /* Cached once from the authored neutral pose, before anything animates. */
+    function cacheNeedleBase() {
+      var p = scaleParts();
+      if (p.needle && !needleBase) needleBase = p.needle.anchoredPos.slice();
     }
 
     function applyNeedle(angle) {
       var p = scaleParts();
       shown.needle = angle;
       if (!p.needle) return;
-      if (!needleBase) needleBase = p.needle.anchoredPos.slice();
-      var pose = needlePose(angle);
-      E.setAnchoredPos(p.needle.id, needleBase[0] + pose.x, needleBase[1] + pose.y);
+      cacheNeedleBase();
+      // the bearing stays put; rotation is the only animated property
+      E.setAnchoredPos(p.needle.id, needleBase[0], needleBase[1]);
       E.setRotZ(p.needle.id, angle);
     }
     function lerp(a, b, u) { return a + (b - a) * u; }
