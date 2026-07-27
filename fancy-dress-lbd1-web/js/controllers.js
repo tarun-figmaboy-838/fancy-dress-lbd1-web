@@ -1173,6 +1173,11 @@ var Controllers = (function () {
         if (i >= msg.length) {
           var rem = clip ? clipLength - typingDelay * msg.length : 0;
           return (rem > 0 ? E.wait(rem, tok) : Promise.resolve())
+            /* Audio.len() can still be the 2s fallback on a cold scene switch,
+               which ends the line early and lets the next instruction cut this
+               clip off mid-word. Wait for the clip itself, as the tutorial
+               already does; if playback never started this resolves at once. */
+            .then(function () { return E.waitUntil(function () { return !s.isPlaying(); }, tok); })
             .then(function () { return E.wait(f.instructionEndDelay, tok); })
             .then(function () { self.isInstructionPlaying = false; });
         }
@@ -1221,6 +1226,11 @@ var Controllers = (function () {
         if (i >= msg.length) {
           var rem = clip ? clipLength - typingDelay * msg.length : 0;
           return (rem > 0 ? E.wait(rem, tok) : Promise.resolve())
+            /* Audio.len() can still be the 2s fallback on a cold scene switch,
+               which ends the line early and lets the next instruction cut this
+               clip off mid-word. Wait for the clip itself, as the tutorial
+               already does; if playback never started this resolves at once. */
+            .then(function () { return E.waitUntil(function () { return !s.isPlaying(); }, tok); })
             .then(function () { return E.wait(f.instructionEndDelay, tok); })
             .then(function () { self.isInstructionPlaying = false; });
         }
