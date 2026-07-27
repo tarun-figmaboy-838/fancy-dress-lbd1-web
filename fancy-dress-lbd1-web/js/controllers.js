@@ -644,6 +644,18 @@ var Controllers = (function () {
 
     var previewGame = null;
 
+    /* Every level here is driven by a WeightGameTutorialController, which
+       teaches "place the item, THEN read the scale". A live preview while the
+       item is still in the air pre-empts that lesson and made the needle move
+       before the book was accepted, so it stays off wherever a tutorial
+       controller owns the item. The preview itself is left intact for any
+       future free-play mode: set allowDragScalePreview on the instance. */
+    self.allowDragScalePreview = false;
+    function shouldPreviewWhileDragging() {
+      if (self.allowDragScalePreview) return true;
+      return !get('WeightGameTutorialController', f.tutorialController);
+    }
+
     /* The scale reacts to the item's real overlap with a pan while it is being
        dragged, and unwinds as it is dragged back out. */
     function updateScalePreview() {
@@ -668,6 +680,8 @@ var Controllers = (function () {
       }
     }
 
+    /* No-op unless a preview actually ran, so a tutorial drop never fires a
+       spurious return-to-neutral on top of the real drop animation. */
     function endScalePreview() {
       if (previewGame) { previewGame.clearPreview(); previewGame = null; }
     }
@@ -677,7 +691,7 @@ var Controllers = (function () {
       var p = E.getAnchoredPos(self.node);
       E.setAnchoredPos(self.node, p[0] + dx, p[1] + dy);
       clampToCanvas();
-      updateScalePreview();
+      if (shouldPreviewWhileDragging()) updateScalePreview();
     }
 
     function onEndDrag(ev) {
@@ -973,6 +987,15 @@ var Controllers = (function () {
       self.isMoving = false;
     };
 
+    /* Reset must not animate: an animated return can start from a pose left by
+       the previous level, and it is visible on level entry. */
+    function applyNeutralImmediately() {
+      animRunner.stop('anim');
+      applyBeam(POSE.none.beam, POSE.none.left, POSE.none.right);
+      applyNeedle(POSE.none.needle);
+      self.isMoving = false;
+    }
+
     function playAnimationForSide(side) {
       animRunner.stop('anim');
       var tok = animRunner.fresh('anim');
@@ -1077,7 +1100,7 @@ var Controllers = (function () {
       self.leftItems.length = 0; self.rightItems.length = 0;
       self.leftWeight = 0; self.rightWeight = 0;
       self.currentHeavierSide = 'none';
-      playAnimationForSide('none');
+      applyNeutralImmediately();
       // FindObjectsOfType<BasketDropZone>() is scene-wide in the original
       var zones = COMP['BasketDropZone'] || {};
       Object.keys(zones).forEach(function (k) { zones[k].clearBasket(); });
