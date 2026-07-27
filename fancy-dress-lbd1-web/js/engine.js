@@ -445,6 +445,9 @@ var Engine = (function () {
           seen[p] = 1;
           var img = new Image();
           img.src = spriteUrl(p);
+          // decode up front: a preloaded-but-undecoded frame still hitches on
+          // its first paint, which is exactly when the hint appears
+          if (img.decode) img.decode().catch(function () {});
         });
       });
     });
@@ -805,7 +808,16 @@ var Engine = (function () {
       preload: preload, len: len,
       sourcePlay: function (id) { source(id).play(); },
       sourceStop: function (id) { source(id).stop(); },
-      reset: function () { sources = {}; }
+      /* A scene change drops every Source object, but the <audio> elements are
+         cached per file and keep playing — the old scene's line would then run
+         over the new one. Silence them all before letting go. */
+      reset: function () {
+        Object.keys(sources).forEach(function (k) { sources[k].stop(); });
+        Object.keys(cache).forEach(function (k) {
+          try { cache[k].pause(); cache[k].currentTime = 0; } catch (e) {}
+        });
+        sources = {};
+      }
     };
   })();
 
@@ -990,55 +1002,112 @@ var Engine = (function () {
   }
 
   // ==================================================== confetti burst =====
-  function confetti(nodeId, opts) {
-    var n = node(nodeId);
-    if (!n) return;
-    var host = n.parent ? n.parent.el : stage;
-    var r = n.el.getBoundingClientRect();
-    var hr = host.getBoundingClientRect();
-    var cx = (r.left + r.width / 2 - hr.left) / scaleFactor;
-    var cy = (r.top + r.height / 2 - hr.top) / scaleFactor;
-    var layer = document.createElement('div');
-    layer.className = 'confetti-layer';
-    layer.style.left = cx + 'px';
-    layer.style.top = cy + 'px';
-    host.appendChild(layer);
-    var colors = ['#ffd23f', '#ff6b6b', '#4ecdc4', '#a06cd5', '#f9f871', '#ff9f1c',
-                  '#5ce1e6', '#ff5fa2', '#7cf46a', '#fff6a5'];
-    var shapes = ['sq', 'sq', 'dot', 'star', 'strip'];
+  /* ---------------------------------------------------------- confetti --
+     A short celebration shower. Particles are created once per call, fall
+     from just above the stage, and remove themselves when their animation
+     ends — nothing is ever left parked at the top edge, and nothing exists
+     before a celebration starts. */
+  /* Every confetti knob in one place — tune here, nothing else needs editing.
+     sizePx/fallSec are the two that most change how it reads: bigger and
+     slower = more celebratory, smaller and faster = more subtle. */
+  var CONFETTI = {
+    countDesktop: [55, 70],    // pieces on a wide screen
+    countMobile:  [28, 38],    // pieces under 768px
+    emitSec:      [0, 1.4],    // when each piece enters — the spread is what
+                               // makes it a shower rather than one wave
+    fallSec:      [1.8, 3.0],  // how long a piece takes to cross the screen
+    sizePx:       [16, 28],    // paper size
+    driftPx:      70,          // sideways travel, plus or minus
+    rotationDeg:  240,         // spin, plus or minus
+    windowMs:     4500         // total life of the shower
+  };
 
-    // a flash and two expanding rings sell the moment before the paper lands
-    var flash = document.createElement('b');
-    flash.className = 'burst';
-    layer.appendChild(flash);
-    for (var r = 0; r < 2; r++) {
-      var ring = document.createElement('u');
-      ring.className = 'ring';
-      ring.style.setProperty('--delay', (r * 0.14) + 's');
-      layer.appendChild(ring);
-    }
+  var confettiLayer = null, confettiTimer = 0;
+  var CONFETTI_COLORS = ['#ffd23f', '#ff7a5c', '#3fc7c0', '#ff77b0', '#a06cd5', '#7fe0a8'];
+  var CONFETTI_SHAPES = ['rect', 'rect', 'ribbon', 'star', 'dot'];
 
-    var N = (opts && opts.count) || 96;
-    for (var i = 0; i < N; i++) {
-      var p = document.createElement('i');
-      // bias upward so it arcs like thrown paper instead of spraying evenly
-      var ang = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.5;
-      var spd = 300 + Math.random() * 620;
-      var shape = shapes[i % shapes.length];
-      p.className = shape;
-      p.style.background = colors[i % colors.length];
-      p.style.setProperty('--dx', (Math.cos(ang) * spd) + 'px');
-      p.style.setProperty('--dy', (Math.sin(ang) * spd) + 'px');
-      p.style.setProperty('--rot', (Math.random() * 1440 - 720) + 'deg');
-      p.style.setProperty('--dur', (1.1 + Math.random() * 0.8) + 's');
-      p.style.setProperty('--delay', (Math.random() * 0.18) + 's');
-      var size = 9 + Math.random() * 13;
-      p.style.width = size + 'px';
-      p.style.height = (shape === 'strip' ? size * 2.1 : shape === 'dot' ? size : size * 1.4) + 'px';
-      layer.appendChild(p);
-    }
-    setTimeout(function () { if (layer.parentNode) layer.parentNode.removeChild(layer); }, 2600);
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function clearConfetti() {
+    if (confettiTimer) { clearTimeout(confettiTimer); confettiTimer = 0; }
+    if (confettiLayer && confettiLayer.parentNode) confettiLayer.parentNode.removeChild(confettiLayer);
+    confettiLayer = null;
   }
+
+  /* playConfettiShower({ count, duration }) — one clean shower; calling it
+     again cancels whatever is still running rather than stacking. */
+  function playConfettiShower(opts) {
+    if (!stage) return;
+    opts = opts || {};
+    clearConfetti();
+
+    var reduced = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var mobile = window.innerWidth < 768;
+    var span = mobile ? CONFETTI.countMobile : CONFETTI.countDesktop;
+    var count = opts.count || (reduced ? 10 : Math.round(rand(span[0], span[1])));
+    var total = opts.duration || (reduced ? 800 : CONFETTI.windowMs);
+
+    confettiLayer = document.createElement('div');
+    confettiLayer.id = 'confetti-layer';
+    confettiLayer.setAttribute('aria-hidden', 'true');
+    stage.appendChild(confettiLayer);
+
+    var fall = canvasSize[1] + 120;
+
+    /* Pure shower: no burst, no flash. Every piece falls from above the stage,
+       staggered across a wide emission window so confetti is arriving at the top
+       while earlier pieces are still drifting past the bottom. */
+    var burstCount = 0;
+    for (var i = 0; i < count; i++) {
+      var p = document.createElement('i');
+      var shape = CONFETTI_SHAPES[i % CONFETTI_SHAPES.length];
+      p.className = shape;
+      p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      var isBurst = i < burstCount;
+      if (isBurst) {
+        // fire outward on a random heading, biased upward, then fall away
+        p.classList.add('pop');
+        var ang = -Math.PI / 2 + rand(-1, 1) * 1.15;
+        var reach = rand(220, 620);
+        p.style.left = '50%';
+        p.style.top = '46%';
+        p.style.setProperty('--drift-mid', (Math.cos(ang) * reach * 0.62).toFixed(0) + 'px');
+        p.style.setProperty('--fall-mid', (Math.sin(ang) * reach).toFixed(0) + 'px');
+        p.style.setProperty('--drift-x', (Math.cos(ang) * reach * 1.15).toFixed(0) + 'px');
+        p.style.setProperty('--fall-distance', (canvasSize[1] * 0.62).toFixed(0) + 'px');
+        p.style.setProperty('--duration', rand(1.2, 1.9).toFixed(2) + 's');
+        p.style.setProperty('--delay', rand(0, 0.12).toFixed(2) + 's');
+      } else {
+      p.style.setProperty('--start-x', rand(2, 98).toFixed(2) + '%');
+      p.style.setProperty('--start-y', (-rand(20, 60)).toFixed(0) + 'px');
+      var drift = rand(-CONFETTI.driftPx, CONFETTI.driftPx);
+      p.style.setProperty('--drift-x', drift.toFixed(0) + 'px');
+      p.style.setProperty('--drift-mid', (drift * 0.55).toFixed(1) + 'px');
+      p.style.setProperty('--fall-distance', (reduced ? 140 : fall) + 'px');
+      p.style.setProperty('--fall-mid', ((reduced ? 140 : fall) * 0.45).toFixed(1) + 'px');
+      var rot = reduced ? rand(-30, 30) : rand(-CONFETTI.rotationDeg, CONFETTI.rotationDeg);
+      p.style.setProperty('--rotation', rot.toFixed(0) + 'deg');
+      p.style.setProperty('--rotation-mid', (rot * 0.45).toFixed(0) + 'deg');
+      p.style.setProperty('--duration', (reduced ? 0.7 : rand(CONFETTI.fallSec[0], CONFETTI.fallSec[1])).toFixed(2) + 's');
+      p.style.setProperty('--delay', (reduced ? 0 : rand(CONFETTI.emitSec[0], CONFETTI.emitSec[1])).toFixed(2) + 's');
+      }
+      p.style.setProperty('--scale', rand(0.75, 1.25).toFixed(2));
+      var w = rand(CONFETTI.sizePx[0], CONFETTI.sizePx[1]);
+      p.style.width = w.toFixed(1) + 'px';
+      p.style.height = (shape === 'ribbon' ? w * 2.2 : shape === 'dot' ? w : w * 1.5).toFixed(1) + 'px';
+      // each piece cleans itself up the moment it is done
+      p.addEventListener('animationend', function () {
+        if (this.parentNode) this.parentNode.removeChild(this);
+      });
+      confettiLayer.appendChild(p);
+    }
+    confettiTimer = setTimeout(clearConfetti, total + 1200);
+  }
+
+  /* The scene's ConfettiBlast objects call through here; the burst position is
+     no longer used, the shower covers the stage. */
+  function confetti(nodeId, opts) { playConfettiShower(opts); }
 
   /* pointer client coords -> stage coords (top-left origin, y DOWN) */
   function pointerToStage(ev) {
@@ -1090,7 +1159,7 @@ var Engine = (function () {
     wait: wait, waitUntil: waitUntil, tween: tween, loopScale: loopScale,
     Ease: Ease, add: add, remove: remove,
     Audio: Audio2, animator: animator, findByPath: findByPath,
-    confetti: confetti,
+    confetti: confetti, playConfettiShower: playConfettiShower, CONFETTI: CONFETTI,
     pointerToStage: pointerToStage, stageRectYUp: stageRectYUp,
     localPointInRect: localPointInRect,
     stagePos: function (id) { var n = node(id); return n ? n.stagePos() : [0, 0]; },

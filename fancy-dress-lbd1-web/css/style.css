@@ -94,48 +94,106 @@ body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
   100% { transform: scale(1);    filter: brightness(1); }
 }
 
-/* ---- confetti burst (CSS stand-in for the ConfettiBlast ParticleSystem) --- */
-.confetti-layer { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 50; }
-
-/* paper: squares, strips, dots and stars, thrown upward and pulled down */
-.confetti-layer i {
-  position: absolute; left: 0; top: 0; display: block;
-  margin-left: -6px; margin-top: -6px;
-  animation: confetti-fly var(--dur, 1.3s) cubic-bezier(.12, .62, .3, 1) var(--delay, 0s) forwards;
+/* ---- confetti shower (CSS stand-in for the ConfettiBlast ParticleSystem) -- */
+#confetti-layer {
+  position: absolute; inset: 0;
+  overflow: hidden; pointer-events: none;
+  z-index: 9000;
 }
-.confetti-layer i.sq    { border-radius: 2px; }
-.confetti-layer i.strip { border-radius: 3px; }
-.confetti-layer i.dot   { border-radius: 50%; }
-.confetti-layer i.star  {
-  border-radius: 0;
+
+/* Only transform and opacity animate. fill-mode "both" matters: with
+   "forwards" a delayed particle sits at its base style — top of the layer,
+   fully opaque — which parked a static row of confetti across the header
+   until its delay elapsed. */
+#confetti-layer i {
+  position: absolute;
+  top: 0; left: var(--start-x, 50%);
+  display: block;
+  /* Promotion is required here: without it the animations do not tick.
+     The layer cost is kept in check by the piece count instead. */
+  will-change: transform, opacity;
+  /* transform and opacity run as two independent animations: a keyframe that
+     omits transform drags it back toward identity, which pinned every piece
+     near the top instead of letting it fall. */
+  animation: confetti-fall var(--duration, 1.4s) cubic-bezier(.25, .46, .45, .94) var(--delay, 0s) both,
+             confetti-fade var(--duration, 1.4s) linear var(--delay, 0s) both;
+}
+#confetti-layer i.rect   { border-radius: 2px; }
+#confetti-layer i.ribbon { border-radius: 3px; }
+#confetti-layer i.dot    { border-radius: 50%; }
+#confetti-layer i.star   {
   clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
-@keyframes confetti-fly {
-  0%   { transform: translate(0, 0) rotate(0) scale(.4); opacity: 0; }
-  12%  { opacity: 1; transform: translate(calc(var(--dx) * .18), calc(var(--dy) * .3)) rotate(60deg) scale(1.15); }
-  60%  { opacity: 1; }
-  100% { transform: translate(var(--dx), calc(var(--dy) + 560px)) rotate(var(--rot)) scale(.7);
-         opacity: 0; }
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(-50%, var(--start-y, -40px), 0) rotate(0deg) scale(var(--scale, 1));
+  }
+  45% {
+    transform: translate3d(calc(-50% + var(--drift-mid, 0px)), var(--fall-mid, 400px), 0)
+               rotate(var(--rotation-mid, 80deg)) scale(var(--scale, 1));
+  }
+  100% {
+    transform: translate3d(calc(-50% + var(--drift-x, 0px)), var(--fall-distance, 900px), 0)
+               rotate(var(--rotation, 180deg)) scale(var(--scale, 1));
+  }
 }
 
-/* the pop: a warm flash and two rings racing outward from the burst point */
-.confetti-layer .burst {
-  position: absolute; left: -70px; top: -70px; width: 140px; height: 140px;
-  border-radius: 50%; display: block;
-  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,214,102,.7) 40%, rgba(255,214,102,0) 70%);
-  animation: confetti-flash .5s ease-out forwards;
+@keyframes confetti-fade {
+  0%   { opacity: 0; }
+  8%   { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---- the Heavier / Lighter labels announce themselves ------------------- */
+/* Pop in, then hold a soft tinted glow so the child connects each label to its
+   pan. Both run on the ::before sprite layer so they never fight the inline
+   transform the engine writes while positioning the label. */
+.un.labelGlow::before {
+  animation: label-pop .5s cubic-bezier(.2, 1.6, .35, 1) 1,
+             label-glow 1.5s ease-in-out .5s infinite;
+}
+@keyframes label-pop {
+  0%   { transform: scale(.55); }
+  55%  { transform: scale(1.18); }
+  78%  { transform: scale(.95); }
+  100% { transform: scale(1); }
+}
+@keyframes label-glow {
+  0%, 100% { filter: drop-shadow(0 0 3px var(--glow, rgba(255,255,255,.6))) brightness(1); }
+  50%      { filter: drop-shadow(0 0 18px var(--glow, rgba(255,255,255,1))) brightness(1.2); }
+}
+.un.labelGlow.heavy { --glow: rgba(255, 92, 92, .95); }
+.un.labelGlow.light { --glow: rgba(90, 214, 255, .95); }
+
+/* The winning moment needs impact before the rain: a warm flash and a set of
+   pieces thrown outward from the centre, arcing up and then falling. */
+#confetti-layer .flash {
+  position: absolute; left: 50%; top: 42%;
+  width: 340px; height: 340px; margin: -170px 0 0 -170px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,214,102,.65) 38%, rgba(255,214,102,0) 70%);
+  animation: confetti-flash .55s cubic-bezier(.2,.8,.3,1) both;
 }
 @keyframes confetti-flash {
-  0%   { transform: scale(.2); opacity: 1; }
-  100% { transform: scale(2.4); opacity: 0; }
+  0%   { transform: scale(.25); opacity: 1; }
+  100% { transform: scale(2.6);  opacity: 0; }
 }
-.confetti-layer .ring {
-  position: absolute; left: -30px; top: -30px; width: 60px; height: 60px;
-  border-radius: 50%; display: block;
-  border: 6px solid rgba(255, 236, 150, .95);
-  animation: confetti-ring .75s cubic-bezier(.2, .8, .3, 1) var(--delay, 0s) forwards;
+#confetti-layer i.pop {
+  animation: confetti-burst var(--duration, 1.6s) cubic-bezier(.1, .75, .3, 1) var(--delay, 0s) both,
+             confetti-fade var(--duration, 1.6s) linear var(--delay, 0s) both;
 }
-@keyframes confetti-ring {
-  0%   { transform: scale(.3); opacity: .95; border-width: 10px; }
-  100% { transform: scale(6.5); opacity: 0; border-width: 1px; }
+@keyframes confetti-burst {
+  0% {
+    transform: translate3d(-50%, -50%, 0) rotate(0deg) scale(.3);
+  }
+  35% {
+    transform: translate3d(calc(-50% + var(--drift-mid, 0px)), calc(-50% + var(--fall-mid, -200px)), 0)
+               rotate(var(--rotation-mid, 90deg)) scale(var(--scale, 1));
+  }
+  100% {
+    transform: translate3d(calc(-50% + var(--drift-x, 0px)), calc(-50% + var(--fall-distance, 700px)), 0)
+               rotate(var(--rotation, 200deg)) scale(var(--scale, 1));
+  }
 }

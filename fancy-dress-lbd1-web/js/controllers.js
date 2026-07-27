@@ -96,13 +96,28 @@ var Controllers = (function () {
      parks the hand below whatever it is pointing at. */
   var HAND_ART = { cx: 0.512, cy: 0.60 };
 
-  /* Put the hand's visible centre — not its node centre — on a stage point. */
-  function placeHand(id, stageX, stageY) {
+  /* On a button the hand reads better sitting low, over the button's lower
+     edge, rather than centred on it — 0.15 of the hand's own height, so it
+     holds at either scale the two scenes use. */
+  var BUTTON_HINT_DROP = 0.15;
+
+  /* Put the hand's visible centre — not its node centre — on a stage point.
+     dropFrac nudges it down by a fraction of its own height. */
+  function placeHand(id, stageX, stageY, dropFrac) {
     var n = E.node(id);
     if (!n) return;
-    var sz = n.size();
+    var sz = n.size(), h = sz[1] * n.scale[1];
     E.setStagePos(id, stageX - (HAND_ART.cx - 0.5) * sz[0] * n.scale[0],
-                      stageY - (HAND_ART.cy - 0.5) * sz[1] * n.scale[1]);
+                      stageY - (HAND_ART.cy - 0.5) * h + (dropFrac || 0) * h);
+  }
+
+  /* Light the Heavier / Lighter label up in its own colour when it appears. */
+  function glowLabel(id, isHeavy) {
+    var node = E.node(id);
+    if (!node) return;
+    node.el.classList.remove('labelGlow', 'heavy', 'light');
+    void node.el.offsetWidth;
+    node.el.classList.add('labelGlow', isHeavy ? 'heavy' : 'light');
   }
 
   /* A short pop on the item that was just chosen. The class drives the ::before
@@ -246,7 +261,8 @@ var Controllers = (function () {
 
     /* IEnumerator HighlightSprite(img, normal, highlight) */
     function highlightSprite(imgId, normal, highlight, tok) {
-      E.setSprite(imgId, highlight); E.setNativeSize(imgId);
+      // the glow sprite lands and the item pops with it
+      E.setSprite(imgId, highlight); E.setNativeSize(imgId); tapPop(imgId);
       return E.wait(1, tok).then(function () {
         E.setSprite(imgId, normal); E.setNativeSize(imgId);
         return E.wait(0.5, tok);
@@ -286,6 +302,7 @@ var Controllers = (function () {
 
     function popupArrow(id, delay, tok) {
       E.setActive(id, true);
+      glowLabel(id, String(id) === String(f.arrowDown));
       E.setScale(id, 0);
       self.runner.run(function (t2) {
         return (delay > 0 ? E.wait(delay, t2) : Promise.resolve())
@@ -293,10 +310,24 @@ var Controllers = (function () {
       }, tok);
     }
 
+    /* Same rule as the levels: each label centred on its pan and the same
+       distance outward, so the tutorial matches every level. The tutorial's
+       ball (right pan) is always the heavy side. */
+    function placeTutorialLabels() {
+      [[f.arrowDown, 'Right/Basket/Image (1)', 1],
+       [f.arrowUp,   'left /Basket/Image',    -1]].forEach(function (e) {
+        var pan = E.findByPath(f.bookAnimator, e[1]);
+        if (!pan || !e[0]) return;
+        var sp = E.stagePos(pan.id);
+        E.setStagePos(e[0], sp[0] + e[2] * 300, sp[1]);
+      });
+    }
+
     /* IEnumerator PlayInstruction7WithArrows */
     function playInstruction7(tok) {
       E.setActive(f.arrowDown, false);
       E.setActive(f.arrowUp, false);
+      placeTutorialLabels();
       E.setInteractable(f.bookButton, false);
       E.setInteractable(f.ballButton, false);
       E.setText(f.instructionText, '');
@@ -336,7 +367,7 @@ var Controllers = (function () {
       E.setActive(f.newHintHand, true);
       E.setScale(f.newHintHand, self.newHintDefaultScale);
       var bp = E.stagePos(btnId);
-      placeHand(f.newHintHand, bp[0], bp[1]);
+      placeHand(f.newHintHand, bp[0], bp[1], BUTTON_HINT_DROP);
       var a = E.animator(f.newHintHand);
       a.play('tap_anim');
     }
@@ -437,6 +468,7 @@ var Controllers = (function () {
       anim.enabled = false;
       E.setSprite(f.ballButton, f.ballCorrectSprite);
       E.setNativeSize(f.ballButton);
+      tapPop(f.ballButton);
       if (f.ballCorrectParticle) E.confetti(f.ballCorrectParticle);
       self.runner.run(afterBallCorrectFlow);
     }
@@ -699,6 +731,7 @@ var Controllers = (function () {
     var self = {
       node: String(hostId),
       isLeftBasket: !!f.isLeftBasket,
+      gameManager: String(f.gameManager),
       currentItemInBasket: null
     };
     var n = E.node(hostId);
@@ -756,8 +789,124 @@ var Controllers = (function () {
       leftItems: [], rightItems: [],
       currentHeavierSide: 'none'
     };
-    var anim = E.animator(f.scaleAnimator);
     var animRunner = new Runner();
+
+    /* ---- procedural balance movement -------------------------------------
+       The three extracted clips only cross-fade between fixed poses, which
+       reads as a robotic snap and leaves the needle barely legible. The same
+       four transforms are driven directly instead: the needle leads, the beam
+       follows a beat later, the pans are derived from the beam's own animated
+       value so they can never drift out of sync, and the whole thing settles
+       exactly once. The poses below ARE the clips' end values, so the geometry
+       is unchanged — only the motion is. */
+    var BEAM_MAX = 8, NEEDLE_MAX = 24;
+    var POSE = {
+      none:  { beam: 0,          needle: 0,           left: 18,  right: 18 },
+      left:  { beam: BEAM_MAX,   needle: NEEDLE_MAX,  left: -34, right: 79 },
+      right: { beam: -BEAM_MAX,  needle: -NEEDLE_MAX, left: 82,  right: -28 }
+    };
+    var parts = null;
+    function scaleParts() {
+      if (!parts) parts = {
+        beam:   E.findByPath(f.scaleAnimator, 'plate'),
+        needle: E.findByPath(f.scaleAnimator, 'needle'),
+        left:   E.findByPath(f.scaleAnimator, 'left '),
+        right:  E.findByPath(f.scaleAnimator, 'Right')
+      };
+      return parts;
+    }
+    var shown = { beam: 0, needle: 0, left: 18, right: 18 };
+
+    function applyBeam(beam, left, right) {
+      var p = scaleParts();
+      shown.beam = beam; shown.left = left; shown.right = right;
+      if (p.beam) E.setRotZ(p.beam.id, beam);
+      if (p.left) E.setAnchoredPos(p.left.id, null, left);
+      if (p.right) E.setAnchoredPos(p.right.id, null, right);
+    }
+    function applyNeedle(angle) {
+      var p = scaleParts();
+      shown.needle = angle;
+      if (p.needle) E.setRotZ(p.needle.id, angle);
+    }
+    function lerp(a, b, u) { return a + (b - a) * u; }
+    function reducedMotion() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    /* One overshoot and an exact return, expressed as a fraction of the trip so
+       the pans stay locked to the beam through the settle too. */
+    function settle(tok, from, to, degrees, outDur, backDur, apply) {
+      var span = Math.abs(to - from);
+      if (span < 0.001) return Promise.resolve();
+      var over = 1 + degrees / span;
+      return E.tween(outDur, 'OutSine', function (u) { apply(lerp(1, over, u)); }, tok)
+        .then(function () {
+          return E.tween(backDur, 'OutSine', function (u) { apply(lerp(over, 1, u)); }, tok);
+        });
+    }
+
+    function playAnimationForSide(side) {
+      animRunner.stop('anim');
+      var tok = animRunner.fresh('anim');
+      var end = POSE[side] || POSE.none;
+      var from = { beam: shown.beam, needle: shown.needle, left: shown.left, right: shown.right };
+      var target = { beam: end.beam, needle: end.needle, left: end.left, right: end.right };
+
+      // a small difference must still swing the needle far enough to read;
+      // an exact balance still uses zero
+      if (side !== 'none' && Math.abs(target.needle) < 5) {
+        target.needle = (target.needle < 0 ? -1 : 1) * 5;
+      }
+
+      var dist = Math.abs(from.beam - target.beam);
+      var main = Math.max(0.28, Math.min(0.55, lerp(0.28, 0.55, dist / (BEAM_MAX * 2))));
+      var reduced = reducedMotion();
+
+      function beamAt(u) {
+        applyBeam(lerp(from.beam, target.beam, u),
+                  lerp(from.left, target.left, u),
+                  lerp(from.right, target.right, u));
+      }
+      function needleAt(u) { applyNeedle(lerp(from.needle, target.needle, u)); }
+
+      animRunner.run(function (t) {
+        return E.wait(reduced ? 0 : 0.08, t)         // let the item reach its slot first
+          .then(function () {
+            // the needle reacts immediately, on its own track
+            animRunner.run(function (t2) {
+              return E.tween(reduced ? 0.25 : main * 0.82, 'OutCubic', needleAt, t2)
+                .then(function () {
+                  if (reduced) return null;
+                  if (side === 'none') {
+                    // cross the centre slightly so a balanced result reads
+                    var cross = from.needle >= 0 ? -1.5 : 1.5;
+                    var a = shown.needle;
+                    return E.tween(0.09, 'OutSine', function (u) { applyNeedle(lerp(a, cross, u)); }, t2)
+                      .then(function () {
+                        var b = shown.needle;
+                        return E.tween(0.13, 'OutSine', function (u) { applyNeedle(lerp(b, 0, u)); }, t2);
+                      });
+                  }
+                  return settle(t2, from.needle, target.needle, 1.8, 0.09, 0.13, needleAt);
+                })
+                .then(function () { applyNeedle(target.needle); });
+            }, tok);
+            return E.wait(reduced ? 0 : 0.04, t);    // the beam follows a beat later
+          })
+          .then(function () { return E.tween(reduced ? 0.25 : main, 'InOutSine', beamAt, t); })
+          .then(function () {
+            if (reduced) return null;
+            return settle(t, from.beam, target.beam, 0.6, 0.10, 0.12, beamAt);
+          })
+          .then(function () {
+            beamAt(1);                                // exact target, no drift
+            applyNeedle(target.needle);
+            self.isMoving = false;
+          });
+      }, tok);
+      self.isMoving = true;
+    }
 
     function getHeavierSide() {
       var d = self.leftWeight - self.rightWeight;
@@ -765,20 +914,9 @@ var Controllers = (function () {
       return d > 0 ? 'left' : 'right';
     }
 
-    function playAnimationForSide(side) {
-      animRunner.stop('anim');
-      var tok = animRunner.fresh('anim');
-      var clip = side === 'left' ? f.leftDownAnimation
-               : side === 'right' ? f.rightDownAnimation
-               : f.balancedAnimation;
-      animRunner.run(function (t) {
-        if (clip) {
-          anim.crossFade(clip, 0.2);
-          return E.wait(0.3, t);
-        }
-        return Promise.resolve();
-      }, tok);
-    }
+    /* True while the scale is still moving, so callers can hold feedback back
+       until it has settled. */
+    self.isMoving = false;
 
     self.onItemDroppedInBasket = function (itemData, isLeft, basketId, item) {
       if (isLeft && self.leftItem !== null) return;
@@ -812,7 +950,7 @@ var Controllers = (function () {
       self.leftItems.length = 0; self.rightItems.length = 0;
       self.leftWeight = 0; self.rightWeight = 0;
       self.currentHeavierSide = 'none';
-      if (f.balancedAnimation) anim.crossFade(f.balancedAnimation, 0.2);
+      playAnimationForSide('none');
       // FindObjectsOfType<BasketDropZone>() is scene-wide in the original
       var zones = COMP['BasketDropZone'] || {};
       Object.keys(zones).forEach(function (k) { zones[k].clearBasket(); });
@@ -896,7 +1034,8 @@ var Controllers = (function () {
     }
 
     function highlightItem(imgId, highlight, normal, tok) {
-      E.setSprite(imgId, highlight); E.setNativeSize(imgId);
+      // the glow sprite lands and the item pops with it
+      E.setSprite(imgId, highlight); E.setNativeSize(imgId); tapPop(imgId);
       return E.wait(1, tok).then(function () {
         E.setSprite(imgId, normal); E.setNativeSize(imgId);
         return E.wait(0.5, tok);
@@ -1045,7 +1184,7 @@ var Controllers = (function () {
         return E.wait(f.arrowDelaySeconds, t).then(function () {
           if (btnId && E.activeInHierarchy(btnId)) {
             var p = E.stagePos(btnId);
-            placeHand(f.hintHand, p[0], p[1]);
+            placeHand(f.hintHand, p[0], p[1], BUTTON_HINT_DROP);
             showArrow(f.hintHand);
             E.animator(f.hintHand).play('tap_anim');
           }
@@ -1081,24 +1220,40 @@ var Controllers = (function () {
     }
 
     // ------------------------------------------------------------- labels ---
+    /* The four authored marker points sit at fixed heights out near the frame
+       edges, so each label ended up a different distance from the pan it
+       describes and the two sides never matched. Derive both from the live
+       pans: centred on their pan, the same distance out, on every level. */
+    var LABEL_OUT = 300;              // reference px, pan centre -> label centre
+
+    function panMarker(isLeft) {
+      var zones = COMP['BasketDropZone'] || {}, hit = null;
+      Object.keys(zones).forEach(function (k) {
+        var z = zones[k];
+        if (hit || String(z.gameManager) !== String(f.measuringGame)) return;
+        if (!!z.isLeftBasket === !!isLeft) hit = z;
+      });
+      return hit ? E.node(hit.node) : null;
+    }
+
+    function placeLabelBySide(labelId, isLeft) {
+      var pan = panMarker(isLeft);
+      if (!pan || !labelId) return;
+      var sp = E.stagePos(pan.id);
+      E.setStagePos(labelId, sp[0] + (isLeft ? -LABEL_OUT : LABEL_OUT), sp[1]);
+    }
+
     function updateLabelPositions() {
       var g = mg();
       if (!g) return;
-      var l = g.leftWeight, r = g.rightWeight;
-      if (l > r) {
-        var a = E.stagePos(f.leftHeavyPoint); E.setStagePos(f.label1, a[0], a[1]);
-        var b = E.stagePos(f.rightLightPoint); E.setStagePos(f.label2, b[0], b[1]);
-      } else if (r > l) {
-        var c = E.stagePos(f.rightHeavyPoint); E.setStagePos(f.label1, c[0], c[1]);
-        var d = E.stagePos(f.leftLightPoint); E.setStagePos(f.label2, d[0], d[1]);
-      } else {
-        var e1 = E.stagePos(f.leftLightPoint); E.setStagePos(f.label1, e1[0], e1[1]);
-        var e2 = E.stagePos(f.rightLightPoint); E.setStagePos(f.label2, e2[0], e2[1]);
-      }
+      var heavyIsLeft = g.leftWeight > g.rightWeight;
+      placeLabelBySide(f.label1, heavyIsLeft);    // label1 is the "down" side
+      placeLabelBySide(f.label2, !heavyIsLeft);   // label2 is the "up" side
     }
     function popupLabel(id, delay, tok) {
       if (!id) return;
       E.setActive(id, true);
+      glowLabel(id, String(id) === String(f.label1));
       E.setScale(id, 0);
       self.runner.run(function (t2) {
         return (delay > 0 ? E.wait(delay, t2) : Promise.resolve())
@@ -1139,10 +1294,10 @@ var Controllers = (function () {
     // --------------------------------------------------------- selection ----
     function correctSelectionFlow(isBook, tok) {
       if (isBook) {
-        E.setSprite(f.bookImage, f.bookCorrectSprite); E.setNativeSize(f.bookImage);
+        E.setSprite(f.bookImage, f.bookCorrectSprite); E.setNativeSize(f.bookImage); tapPop(f.bookImage);
         if (f.bookCorrectParticle) E.confetti(f.bookCorrectParticle);
       } else {
-        E.setSprite(f.ballImage, f.ballCorrectSprite); E.setNativeSize(f.ballImage);
+        E.setSprite(f.ballImage, f.ballCorrectSprite); E.setNativeSize(f.ballImage); tapPop(f.ballImage);
         if (f.ballCorrectParticle) E.confetti(f.ballCorrectParticle);
       }
       return typeInstruction(f.instruction6, f.instruction6Audio, tok)
@@ -1314,6 +1469,10 @@ var Controllers = (function () {
         hideArrow(f.hintHand);
         hideItemHint();
         stopGhost();
+        /* Each level owns its own AudioSource, so a clip still playing here keeps
+           sounding while the next level starts instruction 1 on a different
+           element — two voices at once, which reads as an echo. */
+        src().stop();
         self.runner.stopAll();
       });
       E.addClickListener(f.tryAgainButton, function () { hideArrow(f.hintHand); });
