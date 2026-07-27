@@ -224,14 +224,51 @@ var Engine = (function () {
      with visible children — whereas CSS opacity on the element would cascade
      and hide everything parented into them. Subtree fading is CanvasGroup's
      job, and that is applied in applyPointer. */
+  /* A frame that lives in a sprite sheet: which sheet, and where in it.
+     Looked up once per path and memoised, since this runs inside the animator
+     sample loop. */
+  var sheetCache = {};
+  function sheetFrame(path) {
+    if (sheetCache[path] !== undefined) return sheetCache[path];
+    var found = null, sheets = window.SPRITE_SHEETS || {};
+    Object.keys(sheets).forEach(function (k) {
+      var s = sheets[k], cell = s.frames && s.frames[path];
+      if (!cell || found) return;
+      found = {
+        url: spriteUrl(s.src),
+        size: (s.cols * 100) + '% ' + (s.rows * 100) + '%',
+        pos: (s.cols > 1 ? cell[0] / (s.cols - 1) * 100 : 0) + '% ' +
+             (s.rows > 1 ? cell[1] / (s.rows - 1) * 100 : 0) + '%',
+        inset: s.inset.map(function (v) { return v + '%'; }).join(' ')
+      };
+    });
+    return (sheetCache[path] = found);
+  }
+
   Node.prototype.applyImage = function () {
     if (!this.image) return;
     var st = this.el.style, im = this.image;
     if (!im.enabled || !im.sprite || !im.sprite.path) {
       st.setProperty('--gfx', 'none');
+      if (this._sheet) { this.el.classList.remove('sheet'); this._sheet = false; }
     } else {
-      st.setProperty('--gfx', 'url("' + spriteUrl(im.sprite.path) + '")');
-      st.setProperty('--gfxFit', im.preserveAspect ? 'contain' : '100% 100%');
+      /* Sheet-backed frames only move background-position, so an animation
+         costs the compositor a shift instead of a decode and a re-raster. */
+      var sf = sheetFrame(im.sprite.path);
+      if (sf) {
+        if (!this._sheet) {
+          this.el.classList.add('sheet');
+          st.setProperty('--gfx', 'url("' + sf.url + '")');
+          st.setProperty('--sheetSize', sf.size);
+          st.setProperty('--sheetInset', sf.inset);
+          this._sheet = true;
+        }
+        st.setProperty('--sheetPos', sf.pos);
+      } else {
+        if (this._sheet) { this.el.classList.remove('sheet'); this._sheet = false; }
+        st.setProperty('--gfx', 'url("' + spriteUrl(im.sprite.path) + '")');
+        st.setProperty('--gfxFit', im.preserveAspect ? 'contain' : '100% 100%');
+      }
     }
     st.setProperty('--gfxAlpha', String(im.color[3]));
   };
@@ -369,9 +406,37 @@ var Engine = (function () {
     return n;
   }
 
+  /* The usable box: the visual viewport minus any notch/home-bar insets. iOS
+     reports the visual viewport as the honest visible area once the URL bar has
+     collapsed, so prefer it over innerWidth/innerHeight. */
+  var safeProbe = null;
+  function safeInsets() {
+    if (!safeProbe) {
+      safeProbe = document.createElement('div');
+      safeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;' +
+        'visibility:hidden;pointer-events:none;' +
+        'padding:env(safe-area-inset-top) env(safe-area-inset-right) ' +
+        'env(safe-area-inset-bottom) env(safe-area-inset-left)';
+      (document.body || document.documentElement).appendChild(safeProbe);
+    }
+    var cs = getComputedStyle(safeProbe);
+    return [parseFloat(cs.paddingTop) || 0, parseFloat(cs.paddingRight) || 0,
+            parseFloat(cs.paddingBottom) || 0, parseFloat(cs.paddingLeft) || 0];
+  }
+
+  function viewport() {
+    var vv = window.visualViewport;
+    var w = vv ? vv.width : window.innerWidth;
+    var h = vv ? vv.height : window.innerHeight;
+    var ins = safeInsets();
+    return { w: Math.max(1, w - ins[1] - ins[3]), h: Math.max(1, h - ins[0] - ins[2]),
+             cx: ins[3] + (w - ins[1] - ins[3]) / 2, cy: ins[0] + (h - ins[0] - ins[2]) / 2 };
+  }
+
   function computeScale() {
-    var sw = window.innerWidth / scalerCfg.ref[0];
-    var sh = window.innerHeight / scalerCfg.ref[1];
+    var vp = viewport();
+    var sw = vp.w / scalerCfg.ref[0];
+    var sh = vp.h / scalerCfg.ref[1];
     var s;
     if (scalerCfg.mode !== 1) {           // ConstantPixelSize / Physical
       s = 1;
@@ -383,15 +448,39 @@ var Engine = (function () {
     } else {                                // Shrink
       s = Math.max(sw, sh);
     }
+    /* Unity's match=0.5 lands between fitting the width and fitting the height,
+       so on anything that is not the authored 16:9 it scales past one of them
+       and crops the game — on a phone held upright that threw away nearly half
+       the width. Clamp to the axis that fits: at 16:9 this changes nothing
+       (sw === sh), and everywhere else it keeps the whole design area on
+       screen, which is what the edge-anchored layout expects anyway. */
+    s = Math.min(s, sw, sh);
     scaleFactor = s;
-    canvasSize = [window.innerWidth / s, window.innerHeight / s];
+    canvasSize = [vp.w / s, vp.h / s];
     if (stage) {
       stage.style.width = canvasSize[0] + 'px';
       stage.style.height = canvasSize[1] + 'px';
+      stage.style.left = vp.cx + 'px';
+      stage.style.top = vp.cy + 'px';
       stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
       var r = nodes[stage.dataset.id];
       if (r) r.refreshTree();
     }
+    /* A 16:9 game on a tall phone ends up a small strip in the middle; say so
+       rather than letting a child squint at it. */
+    if (document.body) {
+      var cramped = vp.h > vp.w && (scalerCfg.ref[1] * s) / vp.h < 0.6;
+      document.body.classList.toggle('askRotate', cramped);
+    }
+  }
+
+  /* Resize, rotate and the iOS URL bar all land here; coalesce to one layout
+     pass per frame so a drag-resize does not thrash the whole tree. */
+  var resizePending = false;
+  function onViewportChange() {
+    if (resizePending) return;
+    resizePending = true;
+    requestAnimationFrame(function () { resizePending = false; computeScale(); });
   }
 
   function boot(sceneData, mount) {
@@ -442,17 +531,25 @@ var Engine = (function () {
   function preloadClipFrames() {
     var run = function () {
       var seen = {};
+      var warm = function (url) {
+        if (seen[url]) return;
+        seen[url] = 1;
+        var img = new Image();
+        img.src = url;
+        // decode up front: a preloaded-but-undecoded frame still hitches on
+        // its first paint, which is exactly when the hint appears
+        if (img.decode) img.decode().catch(function () {});
+      };
+      /* sheets first — one of these usually replaces dozens of loose frames */
+      Object.keys(window.SPRITE_SHEETS || {}).forEach(function (k) {
+        warm(spriteUrl(window.SPRITE_SHEETS[k].src));
+      });
       Object.keys(window.ANIMS || {}).forEach(function (name) {
         (window.ANIMS[name].pptr || []).forEach(function (pc) {
           (pc.frames || []).forEach(function (fr) {
             var p = fr.sprite && fr.sprite.path;
-            if (!p || seen[p]) return;
-            seen[p] = 1;
-            var img = new Image();
-            img.src = spriteUrl(p);
-            // decode up front: a preloaded-but-undecoded frame still hitches on
-            // its first paint, which is exactly when the hint appears
-            if (img.decode) img.decode().catch(function () {});
+            if (!p || sheetFrame(p)) return;
+            warm(spriteUrl(p));
           });
         });
       });
@@ -953,7 +1050,11 @@ var Engine = (function () {
       for (var k = 0; k < pc.frames.length; k++) {
         if (pc.frames[k].t <= time) fr = pc.frames[k]; else break;
       }
-      if (fr && fr.sprite) setSprite(t2.id, fr.sprite);
+      /* This runs every tick but the clip only changes frame every 1-3 of
+         them, and re-applying the same sprite is pure churn on the style
+         system for a 69-frame animation. */
+      if (fr && fr.sprite && (!t2.image || t2.image.sprite !== fr.sprite))
+        setSprite(t2.id, fr.sprite);
     }
   };
 
@@ -1167,7 +1268,12 @@ var Engine = (function () {
   }
 
   // ------------------------------------------------------------- exports --
-  window.addEventListener('resize', computeScale);
+  window.addEventListener('resize', onViewportChange);
+  window.addEventListener('orientationchange', onViewportChange);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', onViewportChange);
+    window.visualViewport.addEventListener('scroll', onViewportChange);
+  }
   requestAnimationFrame(frame);
 
   return {

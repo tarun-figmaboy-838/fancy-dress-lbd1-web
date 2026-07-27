@@ -17,12 +17,54 @@ html, body {
 
 #game { position: fixed; inset: 0; overflow: hidden; }
 
-/* the Unity Canvas: sized to screen/scaleFactor, then scaled to fill */
+/* the Unity Canvas: sized to the safe area / scaleFactor, then scaled to fill.
+   left/top are written by computeScale() so the game centres inside the safe
+   area rather than the raw viewport — on a notched phone held sideways the
+   notch would otherwise eat the left edge of the tray. */
 #stage {
   position: absolute;
   left: 50%; top: 50%;
   transform-origin: 50% 50%;
   will-change: transform;
+}
+
+/* ---- too tall and narrow to play: ask for landscape --------------------- */
+#rotate {
+  position: fixed; inset: 0; z-index: 10000;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 28px; padding: 24px;
+  background: #1b1436;
+  color: #fff; text-align: center;
+  font-family: 'Lilita One', system-ui, sans-serif;
+}
+body.askRotate #rotate { display: flex; }
+#rotate p {
+  margin: 0; font-size: clamp(18px, 5.5vw, 30px); line-height: 1.35;
+  letter-spacing: .01em; max-width: 15em;
+}
+/* a phone that turns on its side, drawn in CSS so it costs nothing */
+#rotate .rotIcon {
+  width: clamp(64px, 22vw, 120px);
+  aspect-ratio: 5 / 9;
+  border: 4px solid #ffd166;
+  border-radius: 14px;
+  position: relative;
+  animation: rot-turn 2.4s ease-in-out infinite;
+}
+#rotate .rotIcon::after {
+  content: '';
+  position: absolute; left: 50%; bottom: 7%;
+  width: 22%; aspect-ratio: 1; margin-left: -11%;
+  border-radius: 50%; background: #ffd166;
+}
+@keyframes rot-turn {
+  0%, 30%   { transform: rotate(0deg); }
+  55%, 85%  { transform: rotate(-90deg); }
+  100%      { transform: rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #rotate .rotIcon { animation: none; transform: rotate(-90deg); }
 }
 
 /* every GameObject with a RectTransform */
@@ -43,6 +85,16 @@ html, body {
   background-repeat: no-repeat;
   opacity: var(--gfxAlpha, 1);
   pointer-events: none;
+}
+
+/* A frame that comes out of a sprite sheet. The sheet is cropped to the
+   artwork, so the layer is inset to the sub-rect of the node that the crop was
+   taken from — the artwork then sits exactly where it did inside the original
+   full-size frame, and every authored coordinate still holds. */
+.un.img.sheet::before {
+  inset: var(--sheetInset, 0);
+  background-size: var(--sheetSize, 100% 100%);
+  background-position: var(--sheetPos, 0 0);
 }
 
 /* Image.raycastPadding — the real pointer target */

@@ -9,8 +9,14 @@
 </head>
 <body>
 <div id="game"></div>
+<!-- shown only when the screen is too tall and narrow for a 16:9 game -->
+<div id="rotate" aria-hidden="true">
+  <div class="rotIcon"></div>
+  <p>Turn your device sideways to play</p>
+</div>
 <script src="js/data.js"></script>
 <script src="js/audio-lengths.js"></script>
+<script src="js/hand-frames.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/controllers.js"></script>
 <script src="js/main.js"></script>

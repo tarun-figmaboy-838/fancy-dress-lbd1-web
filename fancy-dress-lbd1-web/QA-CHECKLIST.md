@@ -12,21 +12,39 @@ Last full pass: Chromium 150, 1440×900, cold cache.
 
 | | measured |
 |---|---|
-| ✅ First contentful paint | **188 ms** |
-| ✅ DOMContentLoaded | **100 ms** |
-| ✅ Engine booted and interactive | **187 ms** |
-| ✅ Load event | **658 ms** |
-| ✅ Initial transfer | **1 484 KB** over 94 requests |
+| ✅ First contentful paint | **116 ms** |
+| ✅ DOMContentLoaded | **55 ms** |
+| ✅ Engine booted and interactive | **134 ms** |
+| ✅ Load event | **652 ms** |
+| ✅ Initial transfer | **1 122 KB** over 27 requests |
 | ✅ Failed / 4xx requests | **0** |
 | ✅ JS errors, console errors, warnings | **0 / 0 / 0** |
 
-- ✅ Nothing blocks the first screen. Load order is code (17–41 ms) → audio
-  (58–67 ms) → backdrop art (67–73 ms) → hint-hand frames (87 ms+).
+- ✅ Nothing blocks the first screen. Code loads first, then audio, then art.
 - ✅ The scene no longer waits on audio metadata before starting. It used to
   gate on a `preload()` that gives up after 4 s per clip.
-- ✅ The 69 hint-hand frames (532 KB) load from a `requestIdleCallback`, so they
+- ✅ Loose animation frames are warmed from a `requestIdleCallback`, so they
   never compete with the backdrop or the first voice line.
-- ✅ 165 asset references all resolve; **0 unreferenced files** on disk.
+- ✅ 97 asset files, **0 unreferenced**.
+
+> **Improved this pass.** Packing the tap-hand animation into one sprite sheet
+> removed 69 image requests and 350 KB: **94 requests / 1 484 KB → 27 / 1 122 KB**.
+
+## 1b. The hint hand
+
+- ✅ Plays from a single 2256×2136 texture (`tap_hand_sheet.webp`, 182 KB).
+- ✅ **0 image requests during playback** — a frame change is now only a
+  `background-position` shift, not an image swap.
+- ✅ All 69 frames step through 69 distinct positions.
+- ✅ Renders pixel-for-pixel where it used to: worst artwork offset **1 px of
+  400** across sampled frames, alpha coverage differs 0.01%.
+- ✅ Confirmed animating in a real level on a phone-sized screen.
+
+> **Fixed this pass.** The frames were authored as 69 separate 1200×1200 images
+> and play in a 400×400 node, so every swap made the browser rasterise a
+> 1.4M-pixel bitmap down to ~200px and kept up to **397 MB** of decoded frames
+> alive. 87% of each canvas was empty — the hand fills only 314×594 of it. That
+> is what made the hand stutter and hitch.
 
 ## 2. Voice-over ↔ text sync
 
@@ -113,20 +131,52 @@ Real drags into both pans, then a real tap on the correct item.
 - ✅ Tutorial's invisible 1702×585 hint container is retired after the demo —
   without that the tutorial cannot be answered at all.
 
+## 6b. Devices and screen sizes
+
+Measured on 13 viewports, checking whether any artwork falls outside the screen
+and how big the things a child must hit end up.
+
+| device | viewport | scale | artwork off-screen | tap targets |
+|---|---|---|---|---|
+| small Android | 360×640 | 0.188 | none | *rotate prompt* |
+| iPhone SE | 375×667 | 0.195 | none | *rotate prompt* |
+| iPhone 14 | 390×844 | 0.203 | none | *rotate prompt* |
+| iPhone 14 landscape | 844×390 | 0.361 | none | 102 / 61 px |
+| Pixel 7 landscape | 915×412 | 0.381 | none | 108 / 64 px |
+| iPad mini portrait | 744×1133 | 0.388 | none | *rotate prompt* |
+| iPad landscape | 1133×744 | 0.590 | none | 167 / 100 px |
+| iPad Pro landscape | 1366×1024 | 0.711 | none | 201 / 120 px |
+| laptop | 1366×768 | 0.711 | none | 201 / 120 px |
+| desktop | 1920×1080 | 1.000 | none | 283 / 169 px |
+| ultrawide | 2560×1080 | 1.000 | none | 283 / 169 px |
+| portrait monitor | 1080×1920 | 0.563 | none | *rotate prompt* |
+| 4K | 3840×2160 | 2.000 | none | 566 / 338 px |
+
+- ✅ **No artwork is cut off on any of the 13.** Before this pass every single
+  one cropped — a phone held upright lost 47% of the width, and even 2560×1080
+  lost 85 px off the top and 250 off the bottom.
+- ✅ Every landscape tap target clears the 44 px comfortable minimum.
+- ✅ The rotate prompt appears exactly where the game would otherwise be a thin
+  strip, and never in landscape.
+- ✅ Three levels played end to end at 844×390 with touch emulation: drags land
+  (targets 61–114 px), taps register, celebration fires, **0 errors**.
+- ✅ 1920×1080 renders identically to before the change — at 16:9 the clamp is a
+  no-op by construction (`sw === sh`).
+- ⬜ Real hardware. Touch was emulated; a physical device is still worth a pass.
+
 ## 7. Repo hygiene
 
-- ✅ **0 unreferenced assets** (165 files, 2 744 KB, all reachable).
+- ✅ **0 unreferenced assets** (97 files, all reachable — was 166).
 - ✅ **0** `console.log`, `TODO`, `FIXME` or `HACK` in shipping JS.
 - ✅ `.gitignore` added (logs, editor cruft, `.vercel`, `*.bak`, `node_modules`).
 - ✅ No stray build output or scratch files tracked.
 - ⬜ **God Mode is 160 KB and loads on every page view.** It is dev tooling;
   delete the seven tags at the bottom of `index.html` for the learner build, as
   documented. Left in deliberately.
-- ⬜ **The 69 GIF frames stay GIFs.** Re-encoding them through WebP was measured
-  and makes them *bigger* — 532 KB → 538 KB at q0.85, 621 KB at q0.92 — because
-  they are already flat palette art with an alpha channel. A real `cwebp
-  -lossless` pass is the only way to improve on them and no encoder is
-  available here.
+- ✅ **The 69 GIF frames are gone**, replaced by one sprite sheet. Converting
+  them one-for-one to WebP was measured first and made them *bigger*
+  (532 → 538 KB at q0.85, 621 KB at q0.92) because they are flat palette art
+  with an alpha channel; cropping and packing them is what actually won.
 - ⬜ `UltraSimpleWeightGame` has 7 instances that never drive anything. It is in
   the authored scene, so it is kept to mirror the Unity component surface.
 
@@ -136,9 +186,12 @@ Real drags into both pans, then a real tap on the correct item.
   loudness and whether a line *feels* rushed need ears.
 - ⬜ **Animation smoothness.** Headless cannot judge jank; it froze animations
   entirely under load in an earlier session while a real browser was fine.
-- ⬜ **Touch.** All drag testing used synthetic mouse events.
-- ⬜ Resolutions other than 1440×900. The stage math is resolution-independent
-  and was verified at four sizes previously, but not re-checked this pass.
+- ⬜ **Touch on real hardware.** Drags were driven with touch-type pointer
+  events under device emulation, which exercises the same code path, but finger
+  size and OS gesture interception are not reproducible headlessly.
+- ⬜ **iOS safe areas and the collapsing URL bar.** The fit reads
+  `visualViewport` and `env(safe-area-inset-*)`, but neither can be exercised in
+  headless Chrome — worth one pass on a notched phone.
 
 ## 9. Authored behaviour worth a product decision
 

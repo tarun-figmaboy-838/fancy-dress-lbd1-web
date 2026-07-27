@@ -8,10 +8,11 @@ index.html
 css/style.css
 js/data.js          extracted scene tree + configs + animation curves (generated)
 js/audio-lengths.js exact clip lengths read from the containers (generated)
+js/hand-frames.js   the tap-hand animation packed into one sprite sheet (generated)
 js/engine.js        uGUI-compatible runtime (layout, CanvasScaler, Animator, audio, tweens)
 js/controllers.js   the six MonoBehaviours, ported one function each
 js/main.js          scene bootstrap + SceneManager equivalent
-assets/img          137 files — 64 sprites (webp), 69 hint-hand frames (gif), 4 flat PNGs
+assets/img          69 files — 64 sprites (webp), 1 hand sheet (webp), 4 flat PNGs
 assets/audio        27 clips
 assets/fonts        LilitaOne-Regular.ttf
 god-mode/           dev/QA suite — 7 tags in index.html, delete to ship
@@ -76,9 +77,32 @@ Some things that are easy to get wrong here and how they were handled:
 `match = 0.5`, not 0 or 1 — a hardcoded `min(sw, sh)` scales the whole game
 wrong. The build reproduces Unity's log-space blend,
 `scale = exp(lerp(log sw, log sh, 0.5))`, and resizes the canvas rect to
-`screenSize / scale` on every resize, so edge-anchored elements move with the
-aspect ratio exactly as they do in Unity. Verified exact at 1920×1080, 1280×720,
-1280×900 and 900×1400 (portrait).
+`safeArea / scale` on every resize, so edge-anchored elements move with the
+aspect ratio exactly as they do in Unity.
+
+**…with one clamp, so it fits real screens.** `match = 0.5` lands the scale
+between fitting the width and fitting the height, which means that on anything
+that is not the authored 16:9 it scales past one of them and crops the game.
+Measured on a phone held upright it threw away 47% of the width — the item trays
+on both sides were simply off-screen. The scale is therefore clamped with
+`min(s, sw, sh)`. At 16:9 `sw === sh`, so this changes nothing at all on the
+design aspect; everywhere else it keeps the whole 1920×1080 design area on
+screen. Checked on 13 viewports from 360×640 to 4K: **no artwork off-screen on
+any of them** (before the clamp, every single one cropped).
+
+**Safe area and the visual viewport.** The fit is computed against
+`visualViewport` where it exists — on iOS that is the honest visible height once
+the URL bar has collapsed — minus the `env(safe-area-inset-*)` values, and the
+stage is centred inside that box rather than the raw viewport, so a notch cannot
+eat the left edge of the tray in landscape. `resize`, `orientationchange` and
+both `visualViewport` events feed one rAF-coalesced layout pass.
+
+**Portrait.** A 16:9 game on a 9:19.5 phone becomes a small strip whichever way
+you scale it. When the design area would occupy less than 60% of the viewport
+height in portrait, the build shows a "turn your device sideways" prompt instead
+of letting a child squint at 33px tap targets. In landscape on the smallest phone
+tested (844×390) the item targets measure 61–114px, all above the 44px
+comfortable minimum.
 
 **Balance animation.** The pans, needle and plate are driven by the real
 `Scale_LeftDown` (0.75 s), `Scale_RightDown` (0.667 s) and `Scale_Balanced`
@@ -141,13 +165,29 @@ class (via property accessors, since the controller writes the flags directly),
 giving `cursor: grab`, and `body.dragging` gives `grabbing` for the duration of
 a drag.
 
-**Sprite-swap clips are preloaded, but not urgently.** `tap_anim` is 69 separate
-1200×1200 frames; without preloading, the browser fetched each frame the first
-time it was displayed, so the first loop of the hint hand stuttered through
-half-loaded frames. `boot()` warms every `pptr` frame in `ANIMS` — from a
-`requestIdleCallback`, because those frames are half a megabyte and no hint can
-appear for several seconds, so they must not compete with the backdrop and the
-first voice line for the opening screen's bandwidth.
+**The tap hand is one sprite sheet, not 69 images.** `tap_anim` was authored as
+69 separate 1200×1200 frames, and it plays in a 400×400 node — so every frame
+swap asked the browser to rasterise a 1.4M-pixel bitmap down to about 200px, and
+to keep up to 397 MB of decoded frames alive while it looped. Measured against
+the artwork, 87% of each of those canvases is empty: the hand occupies only
+314×594 of the 1200×1200.
+
+`js/hand-frames.js` maps every authored frame path to a cell in
+`assets/img/tap_hand_sheet.webp` — cropped to the artwork, scaled to the size it
+actually renders at, packed 12×6. Playing the clip is now a `background-position`
+change: one decode, one texture, no per-frame raster. The layer is `inset` to the
+sub-rect of the node that the crop came from, expressed as a percentage, so the
+artwork keeps exactly the position and size it had inside the full-size frame and
+`placeHand()`'s `HAND_ART` centroid still holds — verified pixel-for-pixel
+against the original frames (worst offset 1px of 400).
+
+532 KB of GIFs and 69 requests became 182 KB and one.
+
+**Sprite-swap clips are preloaded, but not urgently.** Anything still shipping as
+loose frames is warmed from a `requestIdleCallback` rather than during boot, so
+it cannot compete with the backdrop and the first voice line for the opening
+screen's bandwidth. The animator also only re-applies a sprite when the frame
+actually changes; it used to re-assign the same one on every tick.
 
 **Clip lengths are shipped, not measured.** Instruction typing speed is
 `clipLength / characters`, and Unity gets `AudioClip.length` for free. A browser
