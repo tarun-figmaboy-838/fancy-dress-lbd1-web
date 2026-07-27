@@ -7,10 +7,11 @@ No Unity, no WebGL build, no frameworks, no build step. Deploy the folder as-is.
 index.html
 css/style.css
 js/data.js          extracted scene tree + configs + animation curves (generated)
+js/audio-lengths.js exact clip lengths read from the containers (generated)
 js/engine.js        uGUI-compatible runtime (layout, CanvasScaler, Animator, audio, tweens)
 js/controllers.js   the six MonoBehaviours, ported one function each
 js/main.js          scene bootstrap + SceneManager equivalent
-assets/img          107 sprites
+assets/img          137 files — 64 sprites (webp), 69 hint-hand frames (gif), 4 flat PNGs
 assets/audio        27 clips
 assets/fonts        LilitaOne-Regular.ttf
 god-mode/           dev/QA suite — 7 tags in index.html, delete to ship
@@ -140,10 +141,22 @@ class (via property accessors, since the controller writes the flags directly),
 giving `cursor: grab`, and `body.dragging` gives `grabbing` for the duration of
 a drag.
 
-**Sprite-swap clips are preloaded.** `tap_anim` is 69 separate 1200×1200 frames;
-without preloading, the browser fetched each frame the first time it was
-displayed, so the first loop of the hint hand stuttered through half-loaded
-frames. `boot()` now warms every `pptr` frame in `ANIMS`.
+**Sprite-swap clips are preloaded, but not urgently.** `tap_anim` is 69 separate
+1200×1200 frames; without preloading, the browser fetched each frame the first
+time it was displayed, so the first loop of the hint hand stuttered through
+half-loaded frames. `boot()` warms every `pptr` frame in `ANIMS` — from a
+`requestIdleCallback`, because those frames are half a megabyte and no hint can
+appear for several seconds, so they must not compete with the backdrop and the
+first voice line for the opening screen's bandwidth.
+
+**Clip lengths are shipped, not measured.** Instruction typing speed is
+`clipLength / characters`, and Unity gets `AudioClip.length` for free. A browser
+does not: Chrome only *estimates* an Ogg's duration while the file streams and
+refines it as bytes arrive, so an element questioned early answers 15–25% short
+— which typed every line noticeably ahead of the voice. `js/audio-lengths.js`
+carries the real length of all 27 clips, read out of the Ogg granule positions
+and MP3 frame headers, so the first play is already in step and the scene no
+longer has to wait on a metadata round-trip before it can start.
 
 **Drop-zone search.** `OnEndDrag` resolves the basket with
 `FindObjectsOfType<BasketDropZone>()`, which in Unity **skips inactive

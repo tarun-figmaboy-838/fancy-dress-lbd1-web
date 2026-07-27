@@ -434,23 +434,31 @@ var Engine = (function () {
 
   /* Sprite-swap clips are one file per frame — tap_anim alone is 69 — and the
      browser would only fetch each one the first time it is displayed, so the
-     first loop of the hint hand stutters through half-loaded frames. */
+     first loop of the hint hand stutters through half-loaded frames.
+
+     Those 69 frames are half a megabyte, and no hint can appear for several
+     seconds, so they wait for an idle moment rather than competing with the
+     backdrop and the first voice line for the opening screen's bandwidth. */
   function preloadClipFrames() {
-    var seen = {};
-    Object.keys(window.ANIMS || {}).forEach(function (name) {
-      (window.ANIMS[name].pptr || []).forEach(function (pc) {
-        (pc.frames || []).forEach(function (fr) {
-          var p = fr.sprite && fr.sprite.path;
-          if (!p || seen[p]) return;
-          seen[p] = 1;
-          var img = new Image();
-          img.src = spriteUrl(p);
-          // decode up front: a preloaded-but-undecoded frame still hitches on
-          // its first paint, which is exactly when the hint appears
-          if (img.decode) img.decode().catch(function () {});
+    var run = function () {
+      var seen = {};
+      Object.keys(window.ANIMS || {}).forEach(function (name) {
+        (window.ANIMS[name].pptr || []).forEach(function (pc) {
+          (pc.frames || []).forEach(function (fr) {
+            var p = fr.sprite && fr.sprite.path;
+            if (!p || seen[p]) return;
+            seen[p] = 1;
+            var img = new Image();
+            img.src = spriteUrl(p);
+            // decode up front: a preloaded-but-undecoded frame still hitches on
+            // its first paint, which is exactly when the hint appears
+            if (img.decode) img.decode().catch(function () {});
+          });
         });
       });
-    });
+    };
+    if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 3000 });
+    else setTimeout(run, 600);
   }
 
   // ================================================================ API ====
@@ -726,9 +734,19 @@ var Engine = (function () {
       return cache[src];
     }
 
+    /* Exact lengths read from the containers at build time (audio-lengths.js).
+       Chrome only *estimates* an Ogg's duration while the file streams and
+       refines it as bytes arrive, so an element questioned early answers 15-25%
+       short — which is what desynced the instruction typing from the voice. */
+    function baked(src) {
+      var t = window.AUDIO_LENGTHS && window.AUDIO_LENGTHS[src];
+      return (typeof t === 'number' && t > 0) ? t : 0;
+    }
+
     function duration(src) {
       return new Promise(function (res) {
         if (!src) { res(0); return; }
+        if (baked(src)) { durations[src] = baked(src); res(durations[src]); return; }
         if (durations[src] !== undefined) { res(durations[src]); return; }
         var a = get(src);
         if (a.readyState >= 1 && isFinite(a.duration)) {
@@ -787,25 +805,36 @@ var Engine = (function () {
       return sources[id];
     }
 
-    /* Unity knows AudioClip.length instantly; we preload metadata at boot so
-       the ported coroutines can read it synchronously and keep their timing. */
+    /* Unity knows AudioClip.length instantly; with the lengths shipped this is
+       only a network warm-up, so nothing has to wait on it. Warm explicitly:
+       duration() answers from the table without ever touching an element, and a
+       clip fetched only when it is first played starts behind its own text. */
+    function warm(src) {
+      if (!src) return;
+      var a = get(src);
+      if (a.readyState === 0) { try { a.load(); } catch (e) {} }
+    }
     function preload(list) {
-      return Promise.all(list.filter(Boolean).map(duration));
+      var l = list.filter(Boolean);
+      l.forEach(warm);
+      return Promise.all(l.map(duration));
     }
     /* Instruction typing speed is clipLength / characters, so a wrong length
        desyncs the text from the voice and lets the next line cut this one off.
-       preload() gives up after 4s on a cold load and caches a 2s guess, so
-       adopt the element's real duration as soon as it knows it. */
+       Prefer the build-time length; only fall back to asking the element, and
+       then only once it reports something plausible. */
     function len(src) {
       if (!src) return 0;
+      if (baked(src)) return baked(src);
       var a = cache[src];
-      if (a && isFinite(a.duration) && a.duration > 0) durations[src] = a.duration;
+      if (a && isFinite(a.duration) && a.duration > 0 && a.readyState >= 4)
+        durations[src] = a.duration;
       return durations[src] !== undefined ? durations[src] : 2;
     }
 
     return {
       get: get, duration: duration, source: source,
-      preload: preload, len: len,
+      preload: preload, warm: warm, len: len,
       sourcePlay: function (id) { source(id).play(); },
       sourceStop: function (id) { source(id).stop(); },
       /* A scene change drops every Source object, but the <audio> elements are

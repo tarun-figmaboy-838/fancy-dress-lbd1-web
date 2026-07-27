@@ -65,8 +65,15 @@ var Game = (function () {
       Engine.onActivated(function () { Controllers.tickControllers(); });
       flushAwakeAudio();
     };
-    // metadata preload keeps the ported clip-length timing exact
-    Engine.Audio.preload(clips).then(go, go);
+    /* The ported coroutines need every clip length before the first line types.
+       Those lengths ship in audio-lengths.js, so the fetch is only a warm-up and
+       the scene can start at once; if a clip is ever missing from that table we
+       still wait for its metadata, as the original port did. */
+    var haveAll = clips.every(function (cl) {
+      return !!(window.AUDIO_LENGTHS && window.AUDIO_LENGTHS[cl] > 0);
+    });
+    if (haveAll) { Engine.Audio.preload(clips); go(); }
+    else Engine.Audio.preload(clips).then(go, go);
   }
 
   function flushAwakeAudio() {

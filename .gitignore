@@ -1,0 +1,36 @@
+# --- editor / OS -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/
+.idea/
+
+# --- logs and scratch --------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# working copies left by the data-patching scripts; js/data.js is the only
+# generated file that belongs in the repo
+*.bak
+*.bak[0-9]*
+js/data.js.bak*
+fancy-dress-lbd1-web/js/data.js.bak*
+
+# --- tooling -----------------------------------------------------------------
+node_modules/
+.cache/
+.parcel-cache/
+.tmp/
+tmp/
+
+# --- hosting -----------------------------------------------------------------
+.vercel
+.netlify
+
+# --- local env ---------------------------------------------------------------
+.env
+.env.*
+!.env.example

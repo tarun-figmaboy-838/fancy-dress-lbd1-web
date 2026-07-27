@@ -1,92 +1,172 @@
 # QA checklist — Fancy Dress: Heavy & Light
 
-Everything below was exercised in a real Chromium instance driven over CDP
-(real pointer events, no shortcuts unless noted). ✅ = verified this session.
+Every ✅ below was exercised in a real Chromium instance driven over CDP with
+real pointer events — no forced state unless the line says so. Numbers are the
+measured values, not targets.
 
-## Boot & scenes
+Last full pass: Chromium 150, 1440×900, cold cache.
 
-- ✅ Boots to the Tutorial intro; 0 console errors, 0 failed requests
-- ✅ 165 asset references all resolve (137 images, 27 clips, 1 font)
-- ✅ Tutorial → Lbd1 hand-off via **Next**
-- ✅ All 7 level screens reachable; `Level 2 → 3 → 4 → 5 → 6 → 7`
-- ✅ Version watermark (`vMT_01_04`) hidden on the intro
+---
 
-## Tutorial
+## 1. Load
 
-- ✅ Let's Go → demo plays; book and ball both visible in the pans
-- ✅ Tap the **wrong** item → red glow, Heavier/Lighter labels, Try again
-- ✅ **Try Again** → prompt replays and the selection reopens
-- ✅ Tap the **correct** item → correct sprite, arrows, Next
-- ✅ Next → loads Lbd1
+| | measured |
+|---|---|
+| ✅ First contentful paint | **188 ms** |
+| ✅ DOMContentLoaded | **100 ms** |
+| ✅ Engine booted and interactive | **187 ms** |
+| ✅ Load event | **658 ms** |
+| ✅ Initial transfer | **1 484 KB** over 94 requests |
+| ✅ Failed / 4xx requests | **0** |
+| ✅ JS errors, console errors, warnings | **0 / 0 / 0** |
 
-## Every level (1–7)
+- ✅ Nothing blocks the first screen. Load order is code (17–41 ms) → audio
+  (58–67 ms) → backdrop art (67–73 ms) → hint-hand frames (87 ms+).
+- ✅ The scene no longer waits on audio metadata before starting. It used to
+  gate on a `preload()` that gives up after 4 s per clip.
+- ✅ The 69 hint-hand frames (532 KB) load from a `requestIdleCallback`, so they
+  never compete with the backdrop or the first voice line.
+- ✅ 165 asset references all resolve; **0 unreferenced files** on disk.
 
-- ✅ Real drag of item 1 → left pan: **dropped and visible**
-- ✅ Real drag of item 2 → right pan: **dropped and visible**
-- ✅ Real tap on the correct item registers
-- ✅ Drop released in empty space returns the item to its tray, still draggable
-- ✅ Drop into the *wrong* basket recovers; sequence still advances
-- ✅ Full playthrough L1→L7 through the Next button
-- ✅ Level 7 correct answer shows the game-over panel
+## 2. Voice-over ↔ text sync
 
-## Balance scale
+Typing speed is `clipLength / characters`, so the text lands exactly with the
+last word — but only if `clipLength` is right.
 
-- ✅ Needle leads the beam; beam follows ~0.04s later
-- ✅ Single settle, no repeated oscillation
-- ✅ Exact final pose, no drift: `beam −8°, needle −24°, pans 82 / −28`
-- ✅ Needle rotates about its mounting pin — identical `left/top/size/origin`
-  at −24°, −12°, −5°, 0°, +5°, +12°, +24° (checked in L1, L4, L7)
-- ✅ No needle position/scale curves remain in any clip
+- ✅ **All 49 spoken lines are in sync.** Worst drift **23 ms**; every line
+  under the 120 ms threshold.
+- ✅ Typing runs at **5.5–10.3 characters/second**, paced by the voice.
+- ✅ Every clip length is verified against the duration the element settles on
+  after playing the file through — not the estimate it reports while streaming.
 
-## Interaction
+> **Fixed this pass.** Chrome only *estimates* an Ogg's duration while the file
+> streams and refines it as bytes arrive, so an element questioned early answers
+> 15–25% short. Every line was typing ahead of the voice — worst case
+> `Heavy things go down…`, which read **5.20 s** as **3.93 s** and finished
+> 1.27 s early. The real lengths now ship in `js/audio-lengths.js`, read out of
+> the Ogg granule positions and MP3 frame headers.
 
-- ✅ 14/14 item-in-pan combinations: 100% of the artwork is tappable
-- ✅ Tap area is the artwork, not the pan (L1 book: 155×107 vs a 202×75 pan)
-- ✅ Cursor: `default` → `grab` when the game hands the item over → `grabbing`
-  while dragging → `default` once locked
-- ✅ Items are not draggable before the level controller starts
+## 3. Audio clashes
 
-## Hints, labels, effects
+Measured by hooking every `HTMLMediaElement`, then sampling which ones are
+actually sounding every 60 ms through real playthroughs.
 
-- ✅ Item-tap hint uses the animated button hand, centred on the item (offset 0, +5)
-- ✅ Tutorial hint centred on the ball (offset 0, 0)
-- ✅ 69 `tap_anim` frames preloaded at boot, 0 fetched mid-animation
-- ✅ Heavier/Lighter labels derived from the live pans: ±300 dx, dy 0, mirrored
-- ✅ Labels pop and hold a tinted glow (red = heavier, cyan = lighter)
-- ✅ Item pops when its glow sprite lands (5 sites across both scenes)
-- ✅ Confetti: falls from above, spans the full height, self-removes,
-  repeat calls do not stack (`layers 0 → 1 → 0`)
+| scenario | overlapping samples | lines cut mid-word |
+|---|---|---|
+| ✅ Levels 1–7, played straight through (98 lines) | **0** | **0** |
+| ✅ Level → Next → level, ×6 | **0** | **0** |
+| ✅ Tutorial, all 7 lines | **0** | **0** |
+| ✅ Tutorial → Lbd1 hand-off | **0** | **0** |
+| ✅ 6 scene/level jumps, one every 1.2 s, all mid-word | **0** | **0** |
 
-## God Mode
+> **Fixed this pass.** That last row used to produce **4.3 s of two voices at
+> once**. Loading a scene threw the old controller instances away but left their
+> coroutines running: a stopped line went on to start its *next* line over the
+> incoming scene's. `Controllers.reset()` now kills every runner first. A second
+> hole: `Runner.run` deferred the coroutine body by a microtask and never
+> re-checked the token, so a line stopped in that window still got its first
+> word out — these coroutines call `AudioSource.Play()` before they await
+> anything cancellable.
 
-- ✅ QA suite: 0 failures
-- ✅ Editor drag/resize exact; teardown restores values, closes panels,
-  clears marks, restores native `requestAnimationFrame`
+## 4. Every level (1–7)
 
-## Not verified here — needs a human with sound and a real GPU
+Real drags into both pans, then a real tap on the correct item.
 
-- ⬜ **Voice-over overlap.** Headless reports 0 sounding `<audio>` elements.
-  Paste this in the console and play through; nothing should print:
-  ```js
-  setInterval(() => {
-    const on = [...document.querySelectorAll('audio')].filter(a => !a.paused && !a.ended);
-    if (on.length > 1) console.warn('OVERLAP', on.map(a => a.src.split('/').pop()));
-  }, 100);
-  ```
-- ⬜ **Animation smoothness.** Headless froze animations entirely under load
-  while a real browser was fine — it cannot judge jank.
-- ⬜ Resolutions other than 1440×900 (stage geometry is resolution-independent,
-  but the fit has only been eyeballed at one size this session)
-- ⬜ Touch devices — all drag testing used synthetic mouse events
+| lvl | weights | left drop | right drop | balance tips | needle | celebration | cleared |
+|---|---|---|---|---|---|---|---|
+| 1 | 1 vs 5 | ✅ | ✅ | ✅ correct | −24° | 61 pieces | ✅ |
+| 2 | 1 vs 5 | ✅ | ✅ | ✅ correct | −24° | 58 pieces | ✅ |
+| 3 | 5 vs 1 | ✅ | ✅ | ✅ correct | +24° | 56 pieces | ✅ |
+| 4 | 5 vs 1 | ✅ | ✅ | ✅ correct | +24° | 69 pieces | ✅ |
+| 5 | 5 vs 1 | ✅ | ✅ | ✅ correct | +24° | 66 pieces | ✅ |
+| 6 | 5 vs 1 | ✅ | ✅ | ✅ correct | +24° | 57 pieces | ✅ |
+| 7 | 5 vs 1 | ✅ | ✅ | ✅ correct | +24° | 57 pieces | ✅ |
 
-## Known content issues (authored, unchanged — product decisions)
+- ✅ **The balance tips toward the heavier item in all seven levels** — checked
+  by comparing the two pans' real screen positions against the weight pair, not
+  by trusting the animation.
+- ✅ Needle and plate always agree in direction (plate −8° with needle −24°).
+- ✅ Every level advances through its own **Next** button; L7 → game-over panel.
+- ✅ Confetti clears completely between levels (`0 pieces, 0 layers`).
 
-- **Level 3** asks for the *heavier* of a ball and a bus, and the correct
-  answer is the **ball** (`bookWeight 5` vs `ballWeight 1`). Internally
-  consistent, pedagogically wrong.
-- The **left** drag arrow has no hand child, so it shows nothing; the right
+## 5. Answer paths
+
+- ✅ **Correct** → correct sprite, item pops, confetti (56 pieces), praise line,
+  explanation with labels, Next.
+- ✅ **Wrong** → wrong sprite, explanation types in full
+  ("Heavy things go down, light things go up!"), *then* Try Again appears.
+- ✅ **Try Again** → reopens the selection (this was a soft-lock on every level
+  once; it is now re-tested explicitly).
+- ✅ Labels land on the right pans with the right tint: **Heavier** red
+  `rgba(255,92,92)` on the low side (x 1201), **Lighter** cyan
+  `rgba(90,214,255)` on the high side (x 168).
+- ✅ Both labels pop in and hold their glow; items pop when their glow sprite
+  lands.
+
+## 6. Screens and rendering
+
+- ✅ All 8 screens (tutorial + 7 levels) render with **0 blank images**, **0 new
+  4xx**, nothing off-stage.
+- ✅ 22 images on screen per level; the only spriteless nodes are the three
+  authored layout containers (`items`, `Image`, `Image (1)`), whose Image
+  components are disabled in the scene data.
+- ✅ Tutorial's invisible 1702×585 hint container is retired after the demo —
+  without that the tutorial cannot be answered at all.
+
+## 7. Repo hygiene
+
+- ✅ **0 unreferenced assets** (165 files, 2 744 KB, all reachable).
+- ✅ **0** `console.log`, `TODO`, `FIXME` or `HACK` in shipping JS.
+- ✅ `.gitignore` added (logs, editor cruft, `.vercel`, `*.bak`, `node_modules`).
+- ✅ No stray build output or scratch files tracked.
+- ⬜ **God Mode is 160 KB and loads on every page view.** It is dev tooling;
+  delete the seven tags at the bottom of `index.html` for the learner build, as
+  documented. Left in deliberately.
+- ⬜ **The 69 GIF frames stay GIFs.** Re-encoding them through WebP was measured
+  and makes them *bigger* — 532 KB → 538 KB at q0.85, 621 KB at q0.92 — because
+  they are already flat palette art with an alpha channel. A real `cwebp
+  -lossless` pass is the only way to improve on them and no encoder is
+  available here.
+- ⬜ `UltraSimpleWeightGame` has 7 instances that never drive anything. It is in
+  the authored scene, so it is kept to mirror the Unity component surface.
+
+## 8. Not verifiable headlessly — needs a human
+
+- ⬜ **How it sounds.** Overlap is proven absent by measurement, but mix,
+  loudness and whether a line *feels* rushed need ears.
+- ⬜ **Animation smoothness.** Headless cannot judge jank; it froze animations
+  entirely under load in an earlier session while a real browser was fine.
+- ⬜ **Touch.** All drag testing used synthetic mouse events.
+- ⬜ Resolutions other than 1440×900. The stage math is resolution-independent
+  and was verified at four sizes previously, but not re-checked this pass.
+
+## 9. Authored behaviour worth a product decision
+
+These are faithful to the Unity project and were **not** changed.
+
+- **Level 3 asks for the heavier of a ball and a bus, and the answer is the
+  ball** (`bookWeight 5` vs `ballWeight 1`). Internally consistent — the balance
+  tips to match — but pedagogically backwards.
+- **The tutorial can be answered before it teaches anything.** The ball button
+  is authored `interactable = 1` and `Start()` only disables the book button, so
+  a tap on the ball during the opening narration is accepted as the correct
+  answer and jumps straight to "well done". One line in `TutorialManager.start`
+  would gate it until the prompt finishes.
+- **The left drag arrow has no hand child**, so it shows nothing while the right
   one shows a hand.
-- The tutorial's balance reacts from `t=0` inside the demo clips rather than
-  after the item lands — re-timing those clips is the remaining spec gap.
-- 9 of 11 item sprites use the computed in-pan resting pose; only the pencils
-  are hand-tuned.
+- **The tutorial's balance reacts from `t=0`** inside the demo clips rather than
+  when the item lands.
+- **9 of 11 item sprites use the computed in-pan resting pose**; only the three
+  pencils are hand-tuned.
+
+---
+
+### Reproducing this
+
+The harness is a plain CDP client over Node's built-in WebSocket — no puppeteer.
+Start any static server on the folder, launch Chrome with
+`--remote-debugging-port`, and drive it. The audio checks work by wrapping
+`HTMLMediaElement.prototype.play/pause` before the page scripts run
+(`Page.addScriptToEvaluateOnNewDocument`) and sampling which elements are
+sounding; that is the only reliable way to catch two voices at once, since the
+elements are created with `new Audio()` and never enter the DOM.

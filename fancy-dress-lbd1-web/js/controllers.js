@@ -37,6 +37,7 @@ var Controllers = (function () {
   }
 
   // ------------------------------------------------------ coroutine runner --
+  var CANCEL_LOCAL = E.CANCEL;
   function Runner() { this.main = new E.TaskGroup(); this.named = {}; }
   Runner.prototype.fresh = function (name) {
     if (this.named[name]) this.named[name].kill();
@@ -55,7 +56,11 @@ var Controllers = (function () {
   Runner.prototype.run = function (fn, tok) {
     var t = tok || this.main;
     Promise.resolve()
-      .then(function () { return fn(t); })
+      /* The body starts a microtask late, so a stop that lands in between used
+         to be ignored: coroutines here open by calling AudioSource.Play(), and
+         only then await something the token can cancel — a stopped line still
+         got its first word out over the top of the next one. */
+      .then(function () { if (t.dead) throw CANCEL_LOCAL; return fn(t); })
       .catch(function (e) { if (!E.isCancel(e)) console.error(e); });
     return t;
   };
@@ -1632,7 +1637,21 @@ var Controllers = (function () {
 
   // =========================================================================
   return {
-    reset: function () { COMP = {}; pending = []; },
+    /* Loading a scene throws the old instances away, but a coroutine already in
+       flight keeps its own closure alive: it goes on typing into a text object
+       that no longer exists and, worse, starts its next line over the incoming
+       scene's — two voices at once, heard as an echo. Kill every runner first. */
+    reset: function () {
+      Object.keys(COMP).forEach(function (name) {
+        Object.keys(COMP[name]).forEach(function (id) {
+          var inst = COMP[name][id];
+          if (inst && inst.runner && inst.runner.stopAll) {
+            try { inst.runner.stopAll(); } catch (e) {}
+          }
+        });
+      });
+      COMP = {}; pending = [];
+    },
     tickControllers: tickControllers,
     isStarted: isStarted,
     get: get,
