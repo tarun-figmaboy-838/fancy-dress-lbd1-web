@@ -466,11 +466,17 @@ var Engine = (function () {
       var r = nodes[stage.dataset.id];
       if (r) r.refreshTree();
     }
-    /* A 16:9 game on a tall phone ends up a small strip in the middle; say so
-       rather than letting a child squint at it. */
+    /* A 16:9 game on a phone held upright ends up a small strip in the middle,
+       so ask for landscape — but only where that is actually the player's to
+       fix. A desktop window that happens to be a pixel taller than it is wide
+       must never be hijacked by a "turn your device" screen, and neither must a
+       portrait monitor, so this needs a touch device, a clearly portrait shape,
+       and a phone/tablet-sized screen before it will fire. */
     if (document.body) {
-      var cramped = vp.h > vp.w && (scalerCfg.ref[1] * s) / vp.h < 0.6;
-      document.body.classList.toggle('askRotate', cramped);
+      var handheld = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      var portrait = vp.h > vp.w * 1.15 && Math.min(vp.w, vp.h) < 820;
+      var cramped = (scalerCfg.ref[1] * s) / vp.h < 0.6;
+      document.body.classList.toggle('askRotate', handheld && portrait && cramped);
     }
   }
 
