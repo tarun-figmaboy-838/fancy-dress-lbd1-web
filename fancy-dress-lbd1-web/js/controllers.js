@@ -609,18 +609,22 @@ var Controllers = (function () {
       E.setAnchoredPos(self.node, p[0], p[1]);
     }
 
-    /* How the item sits once it is in the pan. The defaults are the original's
-       (centred on the drop marker at 0.9), but an item whose artwork needs a
-       nudge or a tilt to look like it is resting in the bowl can override them
-       per instance with dropRestPos / dropRestScale / dropRestRot. */
+    /* How the item sits once it is in the pan. The rest point is one shared
+       value rather than the authored dropRestPos: those were hand-tuned object
+       by object in Unity and ended up spread over 8px on the left pan and 11px
+       on the right, so the item dropped into a slightly different spot in the
+       bowl on every level — the orange sat lowest, the ball highest. One value
+       puts every item in the same place. Scale and rotation stay per instance:
+       they are properties of the artwork and neither moves the item's centre. */
+    var REST_POS = [-9, 10];          // reference px, item centre within its marker
+
     self.onDropSuccess = function (basketId) {
       self.isLockedAfterDrop = true;
       self.dragEnabled = false;
       E.setParent(self.node, basketId, false);
       E.setAsFirstSibling(self.node);
-      var pos = f.dropRestPos || [0, 0];
       var scale = (f.dropRestScale === undefined || f.dropRestScale === null) ? 0.9 : f.dropRestScale;
-      E.setAnchoredPos(self.node, pos[0], pos[1]);
+      E.setAnchoredPos(self.node, REST_POS[0], REST_POS[1]);
       E.setScale(self.node, scale, scale);
       E.setRotZ(self.node, f.dropRestRot || 0);
     };
@@ -828,7 +832,16 @@ var Controllers = (function () {
 
     self.clearBasket = function () { self.currentItemInBasket = null; };
 
+    /* The authored left marker is not the same on every level: levels 1-2 put it
+       at [11.18, 83] and levels 3-7 at [8.25, 98], so a placed item jumped 15px
+       up its pan the moment the level changed — on the left side only. Pin it to
+       the pose five of the seven levels already share. The right marker is
+       [0, 98] everywhere and is left exactly as authored; the two sides are not
+       symmetrical in this scene and must not be derived from each other. */
+    var LEFT_MARKER = [8.25, 98];       // reference px, marker centre in its pan
+
     register(hostId, 'BasketDropZone', function start() {
+      if (self.isLeftBasket) E.setAnchoredPos(self.node, LEFT_MARKER[0], LEFT_MARKER[1]);
       if (f.basketImage) E.setImageColor(f.basketImage, f.normalColor);
     });
 
@@ -1574,8 +1587,13 @@ var Controllers = (function () {
           self.bookDropped = false; self.bookDragStarted = false;
           return E.waitUntil(function () { return self.bookDropped; }, tok);
         })
+        /* Base1/Base2 are the two counters the items start on (Group_485). The
+           original switched each one off the instant its item was lifted, which
+           left the item's own resting place missing from the table for the rest
+           of the level — and, because a returned item is reparented back onto
+           its counter, made a Try Again put the item inside a hidden object.
+           They stay on now; only the item moves. */
         .then(function () {
-          E.setActive(f.Base1, false);
           return typeInstruction(f.instruction4, f.instruction4Audio, tok);
         })
         .then(function () {
@@ -1584,7 +1602,6 @@ var Controllers = (function () {
           return E.waitUntil(function () { return self.ballDropped; }, tok);
         })
         .then(function () {
-          E.setActive(f.Base2, false);
           disableAllDragging();
           return typeInstruction(f.instruction5, f.instruction5Audio, tok);
         })
