@@ -617,6 +617,7 @@ var Controllers = (function () {
        puts every item in the same place. Scale and rotation stay per instance:
        they are properties of the artwork and neither moves the item's centre. */
     var REST_POS = [-9, 10];          // reference px, item centre within its marker
+    var STAND_X = 6.9;                // reference px, item centre on its counter
 
     self.onDropSuccess = function (basketId) {
       self.isLockedAfterDrop = true;
@@ -783,6 +784,17 @@ var Controllers = (function () {
     });
 
     register(hostId, 'DraggableItem', function start() {
+      /* Every item stands on the same counter, but the authored x wandered from
+         1.42 to 10.41 across the fourteen of them — the book sat left of its
+         plate, the ball right of it, the orange a shade left. Pin x to the
+         offset nine of the fourteen already share. y is deliberately left as
+         authored: a tall watermelon and a flat pencil need different heights
+         to look like they are resting ON the plate rather than sunk into it.
+         Done before originalAnchoredPos is captured so an item that is dragged
+         and then returned comes back to the corrected spot. */
+      var stand = E.getAnchoredPos(self.node);
+      E.setAnchoredPos(self.node, STAND_X, stand[1]);
+
       self.originalAnchoredPos = E.getAnchoredPos(self.node);
       self.originalParent = E.node(self.node).parent ? E.node(self.node).parent.id : Game.rootId();
       if (self.itemData && self.itemData.itemSprite) {
