@@ -163,6 +163,21 @@ var Controllers = (function () {
     return true;
   }
 
+  /* Spelling fixes for the authored instruction copy. Level 2 writes "toycar"
+     in instruction4 while its own instruction2 — and the voice-over recording
+     it is typed against, Let_us_place_the_toy_car_on_the_balance.ogg — say
+     "toy car". Corrected here rather than in data.js, which is regenerated from
+     the Unity project. Only the on-screen lines are touched; the sibling
+     *Audio fields are asset paths and must keep their filenames. */
+  var COPY_FIXES = [[/\btoycar\b/gi, 'toy car']];
+  function fixInstructionCopy(f) {
+    Object.keys(f).forEach(function (k) {
+      if (k.indexOf('instruction') !== 0 || typeof f[k] !== 'string') return;
+      if (/Audio$/.test(k)) return;
+      f[k] = COPY_FIXES.reduce(function (s, r) { return s.replace(r[0], r[1]); }, f[k]);
+    });
+  }
+
   /* Base1/Base2 — the two counters the items start on (Group_485). They leave
      the table together, once BOTH items are in the pans. Retiring a counter the
      moment its own item is lifted breaks the table up mid-move and strands the
@@ -220,6 +235,7 @@ var Controllers = (function () {
   //  TutorialManager  (Tutorial scene: guided demo + tap the heavier item)
   // =========================================================================
   function TutorialManager(f, hostId) {
+    fixInstructionCopy(f);
     var self = {
       runner: new Runner(),
       hasStartedSequence: false,
@@ -1190,6 +1206,7 @@ var Controllers = (function () {
   //  WeightGameTutorialController  (7 instances — the level brain)
   // =========================================================================
   function WeightGameTutorialController(f, hostId) {
+    fixInstructionCopy(f);
     var self = {
       node: String(hostId),
       runner: new Runner(),
