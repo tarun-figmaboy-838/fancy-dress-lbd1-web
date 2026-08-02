@@ -163,6 +163,26 @@ var Controllers = (function () {
     return true;
   }
 
+  /* Base1/Base2 — the two counters the items start on (Group_485). They leave
+     the table together, once BOTH items are in the pans. Retiring a counter the
+     moment its own item is lifted breaks the table up mid-move and strands the
+     item still waiting to be dragged beside a gap where its neighbour stood;
+     leaving them once the pans are full parks two empty plates under a finished
+     balance. Image alpha rather than element opacity, so a counter that has
+     something parented onto it does not take that with it. */
+  var COUNTER_FADE = 0.35;              // seconds
+  function retireCounters(ids, runner) {
+    var live = ids.filter(function (id) { return id && E.node(id) && E.activeSelf(id); });
+    if (!live.length) return;
+    runner.run(function (t) {
+      return E.tween(COUNTER_FADE, 'InOutSine', function (u) {
+        live.forEach(function (id) { E.setImageAlpha(id, 1 - u); });
+      }, t).then(function () {
+        live.forEach(function (id) { E.setActive(id, false); });
+      });
+    }, runner.fresh('counters'));
+  }
+
   // =========================================================================
   //  ButtonAnimator  (Tutorial: the "Let's Go" splash button)
   // =========================================================================
@@ -237,6 +257,16 @@ var Controllers = (function () {
       });
     }
 
+    /* The demo places the book first and the ball second, so the ball clip is
+       the one that empties the table. Neither clip touches the counters
+       themselves — only the items standing on them. */
+    function demoCounters() {
+      return ['items /Item 2', 'items /Item 1'].map(function (path) {
+        var n = E.findByPath(f.bookAnimator, path);
+        return n ? n.id : null;
+      });
+    }
+
     function setStep(step) {
       // ScaleAnimator graph: New State --Step==1--> Book animation
       //                      Book animation --Step==2--> Ball Animation
@@ -246,7 +276,10 @@ var Controllers = (function () {
         anim.play('BookAnimation', hideDemoHints);
       } else if (self.animState === 'Book animation' && step === 2) {
         self.animState = 'Ball Animation';
-        anim.play('BallAnimation', hideDemoHints);
+        anim.play('BallAnimation', function () {
+          hideDemoHints();
+          retireCounters(demoCounters(), self.runner);
+        });
       }
     }
 
@@ -1565,6 +1598,9 @@ var Controllers = (function () {
         var l = ballDrag();
         if (l) { l.isLockedAfterDrop = true; l.dragEnabled = false; }
       }
+      /* Both items are locked in their pans by now, so nothing can be sent back
+         to a counter that is on its way out. */
+      if (self.bookDropped && self.ballDropped) retireCounters([f.Base1, f.Base2], self.runner);
       startGhostRoutine();
     };
 
@@ -1599,12 +1635,12 @@ var Controllers = (function () {
           self.bookDropped = false; self.bookDragStarted = false;
           return E.waitUntil(function () { return self.bookDropped; }, tok);
         })
-        /* Base1/Base2 are the two counters the items start on (Group_485). The
-           original switched each one off the instant its item was lifted, which
-           left the item's own resting place missing from the table for the rest
-           of the level — and, because a returned item is reparented back onto
-           its counter, made a Try Again put the item inside a hidden object.
-           They stay on now; only the item moves. */
+        /* The original switched each counter off the instant its item was
+           lifted, which left the item's own resting place missing while the
+           other item was still waiting to be dragged — and, because a returned
+           item is reparented back onto its counter, made a return mid-level put
+           the item inside a hidden object. Both now leave together in
+           onItemDropped, once the second item is in its pan. */
         .then(function () {
           return typeInstruction(f.instruction4, f.instruction4Audio, tok);
         })
