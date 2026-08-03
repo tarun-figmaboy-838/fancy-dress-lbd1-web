@@ -535,6 +535,7 @@ var Controllers = (function () {
       E.setInteractable(f.ballButton, false);
       stopBookHint(); stopNewHint();
       anim.enabled = false;
+      E.Sfx.play('correct');
       E.setSprite(f.ballButton, f.ballCorrectSprite);
       E.setNativeSize(f.ballButton);
       tapPop(f.ballButton);
@@ -1519,6 +1520,9 @@ var Controllers = (function () {
 
     // --------------------------------------------------------- selection ----
     function correctSelectionFlow(isBook, tok) {
+      /* Ahead of the confetti's own sound, so the child hears "right answer"
+         and then the celebration, rather than one undifferentiated noise. */
+      E.Sfx.play('correct');
       if (isBook) {
         E.setSprite(f.bookImage, f.bookCorrectSprite); E.setNativeSize(f.bookImage); tapPop(f.bookImage);
         if (f.bookCorrectParticle) E.confetti(f.bookCorrectParticle);
@@ -1533,6 +1537,18 @@ var Controllers = (function () {
           if (f.isLastLevel) {
             return E.wait(1.5, tok).then(function () {
               if (f.gameOverPanel) E.setActive(f.gameOverPanel, true);
+              /* Finishing the whole game should not sound like finishing one
+                 level. A second shower, and over it a three-rung tally that
+                 climbs — the beat a child already reads as "you completed it".
+                 It runs ahead of the closing voice line and is quiet enough to
+                 sit under it if the two overlap. */
+              E.confetti(null);
+              self.runner.run(function (t2) {
+                return E.wait(0.3, t2)
+                  .then(function () { E.Sfx.play('star', { index: 0 }); return E.wait(0.26, t2); })
+                  .then(function () { E.Sfx.play('star', { index: 1 }); return E.wait(0.26, t2); })
+                  .then(function () { E.Sfx.play('star', { index: 2 }); });
+              }, tok);
               if (f.finalVO) { var s = src(); s.stop(); s.setClip(f.finalVO); s.play(); }
             });
           }

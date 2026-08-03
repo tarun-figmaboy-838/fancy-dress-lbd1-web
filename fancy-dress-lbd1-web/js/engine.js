@@ -988,6 +988,120 @@ var Engine = (function () {
     };
   })();
 
+  // ================================================================ sfx ====
+  /* assets/audio ships voice-over and one button click and nothing else, so
+     every game sound below is synthesised rather than downloaded: no new files
+     to load or cache, nothing to fall behind the animation it punctuates, and
+     retuning is a number instead of a re-export.
+
+     Everything is mixed well under the voice-over. These play on top of an
+     instruction line often enough that a celebration which drowns the words
+     would cost the child the teaching. */
+  var Sfx = (function () {
+    var ctx = null, master = null;
+
+    function audio() {
+      if (ctx) return ctx;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0.22;
+      master.connect(ctx.destination);
+      return ctx;
+    }
+
+    /* A context created before the first gesture starts suspended and stays
+       silent. main.js already listens for that first pointerdown. */
+    function unlock() {
+      var c = audio();
+      if (c && c.state === 'suspended') c.resume().catch(function () {});
+    }
+
+    /* One plucked note. The fast attack and long exponential tail are what
+       make it read as a chime rather than a beep; a triangle keeps some bite
+       without the harshness of a square on small phone speakers. */
+    function note(freq, at, dur, gain, type) {
+      var c = audio(); if (!c) return;
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = type || 'triangle';
+      o.frequency.setValueAtTime(freq, at);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(gain, at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      o.connect(g); g.connect(master);
+      o.start(at); o.stop(at + dur + 0.02);
+    }
+
+    /* Filtered noise swept between two cutoffs — the air in a whoosh, and the
+       fizz under a confetti burst. */
+    function noise(at, dur, gain, f0, f1) {
+      var c = audio(); if (!c) return;
+      var len = Math.ceil(c.sampleRate * dur);
+      var buf = c.createBuffer(1, len, c.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      var s = c.createBufferSource(); s.buffer = buf;
+      var bp = c.createBiquadFilter();
+      bp.type = 'bandpass'; bp.Q.value = 0.8;
+      bp.frequency.setValueAtTime(f0, at);
+      bp.frequency.exponentialRampToValueAtTime(f1, at + dur);
+      var g = c.createGain();
+      g.gain.setValueAtTime(gain, at);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      s.connect(bp); bp.connect(g); g.connect(master);
+      s.start(at); s.stop(at + dur);
+    }
+
+    // C major, so the layers stack into a chord instead of a clash
+    var C5 = 523.25;
+    function semi(n) { return C5 * Math.pow(2, n / 12); }
+
+    var SOUNDS = {
+      /* The answer landed: a major arpeggio that climbs and resolves an octave
+         up. Rising = "yes"; the closing fifth is what makes it feel finished
+         rather than merely loud. */
+      correct: function (t) {
+        [0, 4, 7, 12].forEach(function (s, i) {
+          note(semi(s), t + i * 0.07, 0.45, 0.5, 'triangle');
+        });
+        note(semi(19), t + 0.28, 0.9, 0.28, 'sine');     // shimmering top
+        note(semi(-12), t + 0.28, 0.5, 0.22, 'sine');    // a little body under it
+      },
+
+      /* Scored against the confetti: air first, then the pop, then a scatter of
+         bells that keeps ringing while the paper is still falling. */
+      celebrate: function (t) {
+        noise(t, 0.34, 0.32, 320, 2600);                 // whoosh up into it
+        note(semi(-24), t + 0.22, 0.42, 0.5, 'sine');    // the thump of the burst
+        noise(t + 0.22, 0.5, 0.24, 4200, 900);           // fizz falling away
+        for (var i = 0; i < 9; i++) {                    // sparkle bed
+          var pick = [12, 16, 19, 24, 28][i % 5];
+          note(semi(pick), t + 0.3 + i * 0.11 + Math.random() * 0.05,
+               0.5, 0.13, 'sine');
+        }
+      },
+
+      /* One rung of a climbing reward — pass an index and each call lands a
+         step higher, the way a score tally does. */
+      star: function (t, opts) {
+        var i = (opts && opts.index) || 0;
+        note(semi(12 + i * 4), t, 0.4, 0.4, 'triangle');
+        note(semi(24 + i * 4), t + 0.01, 0.28, 0.16, 'sine');
+      }
+    };
+
+    /* Fire and forget. Unknown names are ignored rather than thrown so a
+       mistyped cue can never take a level's flow down with it. */
+    function play(name, opts) {
+      var c = audio(); if (!c || !SOUNDS[name]) return;
+      unlock();
+      try { SOUNDS[name](c.currentTime + 0.02, opts); } catch (e) {}
+    }
+
+    return { play: play, unlock: unlock, names: Object.keys(SOUNDS) };
+  })();
+
   // =========================================================== animator ====
   function evalCurve(keys, time) {
     if (!keys.length) return 0;
@@ -1226,10 +1340,20 @@ var Engine = (function () {
 
     var fall = canvasSize[1] + 120;
 
-    /* Pure shower: no burst, no flash. Every piece falls from above the stage,
-       staggered across a wide emission window so confetti is arriving at the top
-       while earlier pieces are still drifting past the bottom. */
-    var burstCount = 0;
+    /* A shower alone reads as weather. The moment needs a hit first: a warm
+       flash and a third of the pieces thrown outward from the centre, and only
+       then the rain — so the celebration has a beat to land on. Both are
+       dropped under reduced motion, where the shower alone is the point. */
+    var burstCount = reduced ? 0 : Math.round(count * 0.34);
+    if (!reduced) {
+      var flash = document.createElement('div');
+      flash.className = 'flash';
+      flash.addEventListener('animationend', function () {
+        if (this.parentNode) this.parentNode.removeChild(this);
+      });
+      confettiLayer.appendChild(flash);
+    }
+    Sfx.play('celebrate');
     for (var i = 0; i < count; i++) {
       var p = document.createElement('i');
       var shape = CONFETTI_SHAPES[i % CONFETTI_SHAPES.length];
@@ -1334,7 +1458,7 @@ var Engine = (function () {
     TaskGroup: TaskGroup, CANCEL: CANCEL, isCancel: isCancel,
     wait: wait, waitUntil: waitUntil, tween: tween, loopScale: loopScale,
     Ease: Ease, add: add, remove: remove,
-    Audio: Audio2, animator: animator, findByPath: findByPath,
+    Audio: Audio2, Sfx: Sfx, animator: animator, findByPath: findByPath,
     confetti: confetti, playConfettiShower: playConfettiShower, CONFETTI: CONFETTI,
     pointerToStage: pointerToStage, stageRectYUp: stageRectYUp,
     localPointInRect: localPointInRect,

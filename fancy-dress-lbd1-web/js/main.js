@@ -83,9 +83,13 @@ var Game = (function () {
     });
   }
 
+  /* The one gesture the whole page's audio hangs off: the awake clips that
+     could not autoplay, and the WebAudio context the sound effects are
+     synthesised on, which is created suspended until a user has tapped. */
   window.addEventListener('pointerdown', function once() {
     window.removeEventListener('pointerdown', once);
     flushAwakeAudio();
+    Engine.Sfx.unlock();
   });
 
   return {
