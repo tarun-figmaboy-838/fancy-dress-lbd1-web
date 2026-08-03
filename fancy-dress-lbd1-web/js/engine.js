@@ -52,6 +52,18 @@ var Engine = (function () {
     return urlCache[path];
   }
 
+  /* Fetch and decode a sprite ahead of the frame that shows it. Decoding
+     matters as much as fetching: a preloaded-but-undecoded image still hitches
+     on its first paint, which is exactly the frame being protected. */
+  var warmed = {};
+  function warmImage(url) {
+    if (warmed[url]) return;
+    warmed[url] = 1;
+    var img = new Image();
+    img.src = url;
+    if (img.decode) img.decode().catch(function () {});
+  }
+
   // ------------------------------------------------------- colour helpers --
   function rgba(c) {
     return 'rgba(' + Math.round(c[0] * 255) + ',' + Math.round(c[1] * 255) + ',' +
@@ -534,8 +546,30 @@ var Engine = (function () {
     Object.keys(nodes).forEach(function (k) { if (nodes[k] !== rootNode) nodes[k].refresh(); });
     computeScale();
     wireButtons();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { warmSceneSprites(sceneData); });
+    });
     preloadClipFrames();
     return rootNode;
+  }
+
+  /* Every sprite the scene can ever show, whether or not anything is showing it
+     yet. A sprite merely assigned to a node is not enough: a hidden node is
+     display:none, and the browser does not fetch a background-image it is not
+     painting. 53 of Lbd1's 67 sprites are still cold when the level starts —
+     among them every *_02 "glow" frame a highlight swaps in and the *_03/*_04
+     sets the later levels swap in. That put a fetch AND a decode on the exact
+     frame the item lights up: the item blinked out and the pop stuttered.
+
+     Runs after the first paint, so the sprites actually on screen have already
+     claimed the connection and the level's own artwork is never held up behind
+     this. The first highlight is a second or more after that. */
+  function warmSceneSprites(sceneData) {
+    (function walk(o) {
+      if (!o || typeof o !== 'object') return;
+      if (typeof o.path === 'string' && !sheetFrame(o.path)) warmImage(spriteUrl(o.path));
+      for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) walk(o[k]);
+    })(sceneData);
   }
 
   /* Sprite-swap clips are one file per frame — tap_anim alone is 69 — and the
@@ -547,26 +581,16 @@ var Engine = (function () {
      backdrop and the first voice line for the opening screen's bandwidth. */
   function preloadClipFrames() {
     var run = function () {
-      var seen = {};
-      var warm = function (url) {
-        if (seen[url]) return;
-        seen[url] = 1;
-        var img = new Image();
-        img.src = url;
-        // decode up front: a preloaded-but-undecoded frame still hitches on
-        // its first paint, which is exactly when the hint appears
-        if (img.decode) img.decode().catch(function () {});
-      };
       /* sheets first — one of these usually replaces dozens of loose frames */
       Object.keys(window.SPRITE_SHEETS || {}).forEach(function (k) {
-        warm(spriteUrl(window.SPRITE_SHEETS[k].src));
+        warmImage(spriteUrl(window.SPRITE_SHEETS[k].src));
       });
       Object.keys(window.ANIMS || {}).forEach(function (name) {
         (window.ANIMS[name].pptr || []).forEach(function (pc) {
           (pc.frames || []).forEach(function (fr) {
             var p = fr.sprite && fr.sprite.path;
             if (!p || sheetFrame(p)) return;
-            warm(spriteUrl(p));
+            warmImage(spriteUrl(p));
           });
         });
       });
