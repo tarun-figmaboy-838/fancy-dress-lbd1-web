@@ -10,6 +10,11 @@
  *  Regenerate with scratchpad/durations.js --emit after changing any clip.
  * ========================================================================== */
 window.AUDIO_LENGTHS = {
+  /* Level 3's two lines, re-cut to say "toy bus" — see AUDIO_FIXES in
+     controllers.js. Measured off the rendered files, same as the rest. */
+  "assets/audio/Here_is_a_ball_and_a_toy_bus.wav": 4.103,
+  "assets/audio/Let_us_place_the_toy_bus_on_the_balance.wav": 4.340,
+
   "assets/audio/Heavy_things_go_down_light_things_go_up_.ogg": 5.200,
   "assets/audio/Here_is_a_Pencil_and_a_Toy_car.ogg": 4.150,
   "assets/audio/Here_is_a_Pencil_and_a_ball.ogg": 3.530,

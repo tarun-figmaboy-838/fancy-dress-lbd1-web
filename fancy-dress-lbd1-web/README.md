@@ -656,18 +656,34 @@ already-corrected line it cannot produce "toy toy bus" — and `\b` keeps it off
 "busy" and "buses". No `itemData.itemName` contains "bus", and none is rewritten
 in any case: the ghost-drag hint matches on those names.
 
-**The recordings still say "bus".** Copy can be fixed in code; a voice-over
-cannot. Level 3's banner now reads "toy bus" while the narration says "bus", and
-closing that gap needs two clips re-recorded:
+**The recordings say it too.** Not re-performed — **re-cut**. The same actor
+already says "toy" in this game, in `Let_us_place_the_toy_car_on_the_balance` and
+`Here_is_a_Pencil_and_a_Toy_car`, recorded in the same session. Both source lines
+are the same construction ("the toy *X* on the balance"), so the intonation
+transfers and the timbre matches by construction rather than by imitation.
 
-| clip | line to record |
-|---|---|
-| `Here_is_a_ball_and_a_Bus.ogg` | "Here is a ball and a toy bus." |
-| `Let_us_place_the_Bus_on_the_balance.ogg` | "Let us place the toy bus on the balance." |
+Cuts land in the silence between words, located from each clip's RMS envelope
+rather than by ear-guessing an offset; both seams get a 6 ms fade so no click is
+introduced; and the gap left around the inserted word reproduces the **100 ms**
+the actor leaves between "toy" and "car" in the source.
 
-Drop the new files in at the same paths and add their lengths to
-`js/audio-lengths.js` — the typing speed is `clipLength / characters`, and a
-missing entry makes the first play fall back to a metadata guess.
+| new file | was | now | "toy" lands at |
+|---|---|---|---|
+| `Here_is_a_ball_and_a_toy_bus.wav` | 3.673 s | 4.103 s | 2.72–3.09 s |
+| `Let_us_place_the_toy_bus_on_the_balance.wav` | 3.999 s | 4.340 s | 1.58–1.87 s |
+
+`AUDIO_FIXES` in `controllers.js` remaps the two paths, for the same reason
+`COPY_FIXES` lives there — `data.js` is regenerated. `main.js` collects the clips
+to preload from those same field objects *after* the controllers are built, so
+the new paths are the ones warmed. Lengths are in `js/audio-lengths.js`; typing
+speed is `clipLength / characters`, and it barely moves (146.9 → 141.5 ms and
+111.1 → 108.5 ms per character), so the lines still finish with the voice.
+
+The originals are kept, unreferenced, as the masters. The cost is size: these are
+24 kHz mono WAV, 192 KB and 203 KB against 37 KB and 42 KB of Ogg Vorbis, because
+nothing here can encode Vorbis. `ffmpeg -i in.wav -c:a libvorbis -q:a 4 out.ogg`
+on each would take them back under 45 KB, after which only the two paths in
+`AUDIO_FIXES` need their extension changed.
 
 ## One content observation
 

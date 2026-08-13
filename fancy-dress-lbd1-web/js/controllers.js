@@ -320,6 +320,30 @@ var Controllers = (function () {
     });
   }
 
+  /* The banner saying "toy bus" while the narration said "bus" was only half a
+     fix. The recordings now say it too — not re-performed, but re-cut: the word
+     is lifted from the same actor saying "toy car" in the same session, so the
+     voice matches by construction rather than by imitation. Cut in the silence
+     between words, 6ms fades on both seams, and the gap left around it is the
+     100ms the actor leaves between "toy" and "car" in the source.
+
+     Remapped here rather than in data.js, which is regenerated from the Unity
+     project. main.js collects the clips to preload from these same field
+     objects after the controllers are constructed, so the new paths are the
+     ones warmed. */
+  var AUDIO_FIXES = {
+    'assets/audio/Here_is_a_ball_and_a_Bus.ogg':
+      'assets/audio/Here_is_a_ball_and_a_toy_bus.wav',
+    'assets/audio/Let_us_place_the_Bus_on_the_balance.ogg':
+      'assets/audio/Let_us_place_the_toy_bus_on_the_balance.wav'
+  };
+  function fixInstructionAudio(f) {
+    Object.keys(f).forEach(function (k) {
+      if (k.indexOf('instruction') !== 0 || !/Audio$/.test(k)) return;
+      if (AUDIO_FIXES[f[k]]) f[k] = AUDIO_FIXES[f[k]];
+    });
+  }
+
   /* Base1/Base2 — the two counters the items start on (Group_485). They leave
      the table together, once BOTH items are in the pans. Retiring a counter the
      moment its own item is lifted breaks the table up mid-move and strands the
@@ -1463,6 +1487,7 @@ var Controllers = (function () {
   // =========================================================================
   function WeightGameTutorialController(f, hostId) {
     fixInstructionCopy(f);
+    fixInstructionAudio(f);
     var self = {
       node: String(hostId),
       runner: new Runner(),
