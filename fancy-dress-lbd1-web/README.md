@@ -372,19 +372,34 @@ screen whose one real control is the Let's Go button: the backdrop takes
 `cursor: pointer` edge to edge, and `.un.btn.pressed` dips the brightness of the
 entire splash on every tap. Each tap also restarts the 1.93 s line.
 
-`ButtonAnimator` now retires the backdrop's button (`setInteractable(false)` →
-`.nointeract`, so no pointer cursor and no press dip) and plays the line once on
-its own. Browsers refuse audio before the first gesture and `Source.play()`
-swallows that rejection rather than reporting it, so the code asks afterwards
-whether playback actually started; if it did not, it spends the first tap on the
-line and then unhooks. Unless that tap is Let's Go itself — the splash is over,
-and starting the line only for the button's own `Stop` to cut it off is noise.
+`ButtonAnimator` retires the backdrop's button (`setInteractable(false)` →
+`.nointeract`, so no pointer cursor and no press dip) and plays the line on
+arrival instead.
 
-Measured: backdrop `interactable=no`, `cursor: default`, 0 press-dips in 3 taps,
-and exactly one honoured play with autoplay permitted. With autoplay blocked the
-retry arms and fires once and only once — a synthetic tap is not a trusted
-gesture, so headless cannot prove the sound itself comes out, only that the
-once-only logic holds.
+**Autoplay is a platform decision, not a code one.** Every browser refuses audio
+before the first gesture, and `Source.play()` swallows that rejection rather than
+reporting it — so the code asks afterwards whether playback actually started.
+Where autoplay *is* permitted (an app WebView with
+`mediaPlaybackRequiresUserGesture` off, or an iframe with `allow="autoplay"`) the
+line simply plays and nothing else runs.
+
+Where it is refused, the line is **not** handed to the next stray tap. Doing that
+is what kept the backdrop feeling like the trigger even after its button was
+retired: the child taps the picture, the line starts, and the picture looks
+responsible. Only Let's Go — the screen's one deliberate control — gets it, and
+the gameplay panel is then held until the line finishes, because the tutorial
+opens by speaking and overlapping the two loses both. Note the ordering: that
+button's authored persistent call is `Stop` on this very source, and the engine
+runs persistent calls before listeners, so the play lands after the stop.
+
+Measured, both policies:
+
+| | plain browser (refused) | WebView (allowed) |
+|---|---|---|
+| at load | 1 attempt, refused | 1 play, honoured |
+| 3 taps on the backdrop | 0 plays, 0 press-dips | 0 plays, 0 press-dips |
+| tap Let's Go | +1 play | +0, already played |
+| gameplay panel opens after | 1.95 s | 0.33 s (authored delay) |
 
 ## Hint timing
 

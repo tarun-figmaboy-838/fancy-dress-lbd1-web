@@ -314,32 +314,28 @@ var Controllers = (function () {
       return n && n.parent ? n.parent.id : null;
     }
 
-    /* Once, and only once. Every current browser refuses audio before the first
-       gesture, and Source.play() swallows that rejection rather than reporting
-       it — so ask afterwards whether it actually started, and if it did not,
-       spend the first tap on it. */
+    /* Set when the platform refuses to autoplay the title: the Let's Go tap
+       then owes it. */
+    var bgId = null, titleOwed = false;
+
+    /* Play it on arrival if the platform allows that. Every browser refuses
+       audio before the first gesture and Source.play() swallows the rejection
+       rather than reporting it, so ask afterwards whether it actually started.
+
+       Where autoplay IS permitted — an app WebView with
+       mediaPlaybackRequiresUserGesture off, or an iframe with allow="autoplay" —
+       this plays on its own and nothing below ever runs.
+
+       Where it is refused, the line is NOT handed to the next stray tap. Doing
+       that is what kept the backdrop feeling like the trigger even after its
+       button was retired: the child taps the picture, the line starts, and the
+       picture looks responsible. Only the one deliberate control gets it. */
     function playTitleOnce(id) {
-      var s = E.Audio.source(id), spent = false;
-      function fire() {
-        if (spent) return;
-        spent = true;
-        s.play();
-      }
-      fire();
+      var s = E.Audio.source(id);
+      s.play();
       self.runner.run(function (tok) {
         return E.wait(0.25, tok).then(function () {
-          if (s.isPlaying()) return;              // autoplay was allowed
-          spent = false;                          // it was not: one gesture, then done
-          var onGesture = function (ev) {
-            window.removeEventListener('pointerdown', onGesture, true);
-            /* Unless that first tap is Let's Go itself: the splash is over, and
-               starting the line only for the button's own Stop to cut it off a
-               moment later is noise rather than a title. */
-            var goEl = E.node(go) && E.node(go).el;
-            if (goEl && ev && ev.target && goEl.contains(ev.target)) return;
-            if (E.activeInHierarchy(id)) fire();
-          };
-          window.addEventListener('pointerdown', onGesture, true);
+          if (!s.isPlaying()) titleOwed = true;
         });
       });
     }
@@ -349,10 +345,10 @@ var Controllers = (function () {
       var goNode = E.node(go);
       if (goNode && f.buttonClickAudio) goNode.ownClickSound = true;
 
-      var bg = splash();
-      if (bg) {
-        E.setInteractable(bg, false);             // .nointeract → no pointer, no press dip
-        playTitleOnce(bg);
+      bgId = splash();
+      if (bgId) {
+        E.setInteractable(bgId, false);           // .nointeract → no pointer, no press dip
+        playTitleOnce(bgId);
       }
 
       // DOTween.defaultEaseType = InOutSine (global tuning in the original)
@@ -367,8 +363,22 @@ var Controllers = (function () {
         src.playOneShot(f.buttonClickAudio);
         if (self.loop) self.loop.kill();
         E.setInteractable(go, false);
+
+        /* If autoplay was refused, this tap is the first gesture the page has
+           had and so the title line's only chance. Hold the gameplay panel
+           until it has finished: the tutorial opens by speaking, and letting
+           the two overlap would lose both. Where autoplay was allowed the line
+           has long since played and this is the authored delay, untouched. */
+        var hold = f.audioDelayBeforeDisable;
+        if (titleOwed && bgId) {
+          titleOwed = false;
+          var title = E.Audio.source(bgId);
+          title.play();
+          hold = Math.max(hold, E.Audio.len(title.clip) || 0);
+        }
+
         self.runner.run(function (tok) {
-          return E.wait(f.audioDelayBeforeDisable, tok).then(function () {
+          return E.wait(hold, tok).then(function () {
             E.setActive(go, false);
             E.setActive(panel, true);
             tickControllers();
