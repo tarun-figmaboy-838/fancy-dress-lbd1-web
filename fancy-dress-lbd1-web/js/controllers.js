@@ -1791,30 +1791,56 @@ var Controllers = (function () {
        there rather than a new control being invented: it is already wired,
        already sized, and already takes the press, the cursor and the hand hint.
 
-       It has to be reparented into the panel, which is the last sibling under
-       the level and would otherwise cover it. Bottom-right of the 1920x1080
-       panel, with the ring loop on top of the ordinary attract breathe. */
-    var END_NEXT_POS = [620, -433];
+       Its button is built here rather than borrowed from the levels. The blue
+       sprite belongs to them: it means "the next question", and the last screen
+       is not a question. This one is drawn in CSS so it can carry a stroke that
+       travels around it, which a bitmap cannot, and so it can be gold — closing
+       the game on the colour the Let's Go button opened it with. Parented into
+       the panel, which is the last sibling under the level and would otherwise
+       cover it. */
+    var endBtn = null;
 
     function showEndNext() {
-      var id = f.nextButton;
-      if (!id || !f.gameOverPanel) return;
-      E.setParent(id, f.gameOverPanel, false);
-      E.setAnchoredPos(id, END_NEXT_POS[0], END_NEXT_POS[1]);
-      E.setActive(id, true);
-      /* Level 7's Next button is authored at Image.color.a = 0 — invisible,
-         because in the original it is the last level and the button is never
-         shown. Activating it alone therefore places a fully transparent button:
-         the ring and the hand hint appeared over nothing at all. */
-      E.setImageAlpha(id, 1);
-      E.setInteractable(id, true);
-      attract(id, true);
-      var n = E.node(id);
-      if (n) n.el.classList.add('halo');
+      var panel = f.gameOverPanel && E.node(f.gameOverPanel);
+      if (!panel || endBtn) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'endNext';
+      b.setAttribute('aria-label', 'Play again');
+      /* Two rounded rectangles, both pathLength="100" so the dash pattern is in
+         percent and never has to be recomputed from the perimeter. They travel
+         in opposite directions at different speeds, which reads as movement
+         rather than as one object being rotated. */
+      b.innerHTML =
+        '<svg class="ring" viewBox="0 0 420 132" aria-hidden="true">' +
+        '<rect class="s1" pathLength="100" x="5" y="5" width="410" height="122" rx="61"/>' +
+        '<rect class="s2" pathLength="100" x="15" y="15" width="390" height="102" rx="51"/>' +
+        '</svg><span>Next</span>';
+      panel.el.appendChild(b);
       /* Nothing follows this game, so the only forward it has is round two.
          Swap this one line for a host handoff if the app wants to move on. */
-      E.addClickListener(id, function () { Game.loadScene(0); });
-      startHintForButton(id);
+      b.addEventListener('click', function () { Game.loadScene(0); });
+      endBtn = b;
+      startHintForElement(b);
+    }
+
+    /* The finish-screen button is a DOM control rather than a scene node, so its
+       position has to come back out of the page into stage space before the
+       shared hand can be placed on it. */
+    function startHintForElement(el) {
+      var tok = self.runner.fresh('hint');
+      self.runner.run(function (t) {
+        return waitIdle(HINT_DELAY, t).then(function () {
+          if (!el.parentNode) return;
+          var r = el.getBoundingClientRect();
+          var s = E.stage().getBoundingClientRect();
+          var k = E.scaleFactor() || 1;
+          placeHand(f.hintHand, (r.left + r.width / 2 - s.left) / k,
+                                (r.top + r.height / 2 - s.top) / k, BUTTON_HINT_DROP);
+          showArrow(f.hintHand);
+          E.animator(f.hintHand).play('tap_anim');
+        });
+      }, tok);
     }
 
     function playInstruction7WithLabels(tok) {

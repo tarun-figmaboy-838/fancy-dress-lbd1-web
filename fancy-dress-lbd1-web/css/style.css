@@ -230,44 +230,81 @@ body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
 }
 
 /* ---- the finish screen's Next button ------------------------------------- */
-/* Two rings travelling outward on a loop, on top of the ordinary attract
-   breathe. They run on ::after so ::before is left to the sprite and its own
-   scale — the three compose instead of one cancelling the others, which is the
-   same reason the press lives on the element's `scale`.
+/* Drawn here rather than reusing the levels' blue sprite: that one means "the
+   next question", and the last screen is not a question. Gold closes the game
+   on the colour Let's Go opened it with.
 
-   Both rings come from one element's box-shadow rather than two nested boxes:
-   a second spread on the same shadow is a whole extra ring for no extra DOM,
-   and it stays in step with the first by construction. */
-.un.btn.halo::after {
-  content: "";
+   Sits inside the 1920x1080 stage, so these are design pixels and it scales
+   with everything else. 420x132 is about 262x82 real px on the smallest screen
+   tested — a generous target for a child who has just finished. */
+.endNext {
   position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  pointer-events: none;
-  animation: halo-out 2.4s cubic-bezier(.22, .61, .36, 1) infinite;
+  right: 104px; bottom: 92px;
+  width: 420px; height: 132px;
+  padding: 0; border: 0;
+  border-radius: 66px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd772 0%, #ffb02e 62%, #f79a17 100%);
+  /* the flat lower edge is what makes it read as raised and pressable */
+  box-shadow: 0 10px 0 #c2711a, 0 18px 30px rgba(90, 45, 5, .34);
+  display: grid; place-items: center;
+  isolation: isolate;
+  transition: transform .12s cubic-bezier(.2, 1.4, .4, 1),
+              box-shadow .12s ease-out, filter .12s ease-out;
 }
-@keyframes halo-out {
-  0% {
-    box-shadow: 0 0 0 0 rgba(126, 216, 255, .55),
-                0 0 0 0 rgba(126, 216, 255, .34);
-  }
-  70% {
-    box-shadow: 0 0 0 22px rgba(126, 216, 255, 0),
-                0 0 0 42px rgba(126, 216, 255, .05);
-  }
-  100% {
-    box-shadow: 0 0 0 26px rgba(126, 216, 255, 0),
-                0 0 0 56px rgba(126, 216, 255, 0);
-  }
+.endNext span {
+  position: relative; z-index: 2;
+  font-family: 'Lilita One', system-ui, sans-serif;
+  font-size: 62px;
+  letter-spacing: .02em;
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(150, 85, 10, .55);
 }
-/* held: the rings stop travelling so the press owns the moment */
-.un.btn.halo.pressed::after { animation-play-state: paused; }
+
+/* ---- the stroke that travels round it ------------------------------------ */
+/* Both rectangles carry pathLength="100", so the dash pattern is written in
+   percent and never has to be recomputed from the perimeter — change the size
+   and the animation still lands. They run in opposite directions at different
+   speeds, which reads as movement rather than as one object being rotated. */
+.endNext .ring {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  overflow: visible; pointer-events: none;
+  z-index: 1;
+}
+.endNext .ring rect { fill: none; stroke-linecap: round; }
+.endNext .ring .s1 {
+  stroke: #fff8e1;
+  stroke-width: 7;
+  stroke-dasharray: 26 74;
+  filter: drop-shadow(0 0 6px rgba(255, 236, 170, .9));
+  animation: stroke-run 3.4s linear infinite;
+}
+.endNext .ring .s2 {
+  stroke: rgba(255, 255, 255, .5);
+  stroke-width: 3.5;
+  stroke-dasharray: 8 92;
+  animation: stroke-run-back 5.2s linear infinite;
+}
+@keyframes stroke-run      { to { stroke-dashoffset: -100; } }
+@keyframes stroke-run-back { to { stroke-dashoffset:  100; } }
+
+.endNext:active {
+  transform: translateY(7px);
+  box-shadow: 0 3px 0 #c2711a, 0 7px 14px rgba(90, 45, 5, .3);
+  filter: brightness(.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .endNext:hover { filter: brightness(1.06); }
+}
+.endNext:focus-visible { outline: 6px solid #7ed8ff; outline-offset: 6px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .un.btn.halo::after {
-    animation: none;
-    box-shadow: 0 0 0 9px rgba(126, 216, 255, .20);
-  }
+  .endNext { transition: filter .1s ease-out; }
+  .endNext:active { transform: none; }
+  /* the stroke stays, it just stops travelling */
+  .endNext .ring .s1, .endNext .ring .s2 { animation: none; }
+  .endNext .ring .s1 { stroke-dasharray: 4 6; }
 }
 
 /* ---- a button that is waiting to be tapped ------------------------------- */
