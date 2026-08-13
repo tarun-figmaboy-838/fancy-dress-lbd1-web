@@ -439,6 +439,35 @@ fire at 3.00 s (measured). It lives there rather than in `data.js`, which is
 regenerated from the Unity project and would lose the change. The Tutorial scene
 has its own `hintDelay` of 1 s, is already faster, and is left as authored.
 
+**Counted from idle, not from the phase.** Those are different clocks, and the
+phase clock is the wrong one: a child who spends four seconds dragging an item
+around the table is not idle, and a fixed timer puts a hand on the screen while
+they are still working. `waitIdle` runs the countdown from whichever came later,
+the hint being armed or the child's last action, so it is pushed back by every
+tap and only runs out once the game has actually gone quiet.
+
+Both halves are load-bearing. Without the arming time, a child who has spent
+fifteen seconds listening to an instruction is already "idle" when the next phase
+opens, and the hand lands on the same frame the item becomes draggable — measured
+at 0.04 s before this was fixed. Without the last action, the hand interrupts.
+Taps count as activity; pointer movement counts only during a drag, since on a
+desktop the mouse drifts across the screen on its own and treating that as
+activity would mean the hint never arrived.
+
+Measured on a level, with a simulated child tapping every 700 ms:
+
+| | result |
+|---|---|
+| 6.0 s of continuous activity | no hand shown |
+| 3 s after they stop | drag demo appears |
+| drag abandoned without a drop | demo **returns** after 3.04 s |
+| Next / Try Again idle | hand at 3.00 s |
+
+That last row is its own fix: the ghost is retired the moment a drag begins and
+was never re-armed on a drag that ended without a drop — so the one child who
+most needed the demo, the one who picked the item up and could not work out where
+it goes, was the only one who could never see it again.
+
 ## Arrow label cues
 
 The Heavier / Lighter arrows used to be raised off the instruction text as it
