@@ -301,7 +301,56 @@ var Controllers = (function () {
     var self = { runner: new Runner(), loop: null };
     var go = f.goButton, panel = f.gameplayPanel;
 
+    /* The splash backdrop is itself a full-screen Button, and its only OnClick
+       plays the title line — which is PlayOnAwake:0, so tapping the artwork was
+       the only way to hear it. That makes the entire opening screen advertise
+       itself as pressable: cursor:pointer edge to edge, and a brightness dip
+       over the whole splash on every tap, on a screen whose one real control is
+       the Let's Go button. Worse, each tap restarts the line.
+
+       The backdrop's button is retired and the line plays on its own instead. */
+    function splash() {
+      var n = E.node(go);
+      return n && n.parent ? n.parent.id : null;
+    }
+
+    /* Once, and only once. Every current browser refuses audio before the first
+       gesture, and Source.play() swallows that rejection rather than reporting
+       it — so ask afterwards whether it actually started, and if it did not,
+       spend the first tap on it. */
+    function playTitleOnce(id) {
+      var s = E.Audio.source(id), spent = false;
+      function fire() {
+        if (spent) return;
+        spent = true;
+        s.play();
+      }
+      fire();
+      self.runner.run(function (tok) {
+        return E.wait(0.25, tok).then(function () {
+          if (s.isPlaying()) return;              // autoplay was allowed
+          spent = false;                          // it was not: one gesture, then done
+          var onGesture = function (ev) {
+            window.removeEventListener('pointerdown', onGesture, true);
+            /* Unless that first tap is Let's Go itself: the splash is over, and
+               starting the line only for the button's own Stop to cut it off a
+               moment later is noise rather than a title. */
+            var goEl = E.node(go) && E.node(go).el;
+            if (goEl && ev && ev.target && goEl.contains(ev.target)) return;
+            if (E.activeInHierarchy(id)) fire();
+          };
+          window.addEventListener('pointerdown', onGesture, true);
+        });
+      });
+    }
+
     register(hostId, 'ButtonAnimator', function start() {
+      var bg = splash();
+      if (bg) {
+        E.setInteractable(bg, false);             // .nointeract → no pointer, no press dip
+        playTitleOnce(bg);
+      }
+
       // DOTween.defaultEaseType = InOutSine (global tuning in the original)
       E.setScale(go, 1);
       // .DOScale(1, 1).From(0.8).SetEase(InOutSine).SetLoops(-1, Yoyo)

@@ -307,6 +307,29 @@ during the *next* level and place the shared hand using the previous level's
 coordinates. The Next handler now retires that controller's coroutines and
 hides both hands.
 
+## The opening splash
+
+The splash backdrop is itself a full-screen `Button`, and its only `OnClick` is
+`Play` on the title line — which is `PlayOnAwake: 0`, so tapping the artwork was
+the *only* way to hear it. Two things follow from that, and both are wrong on a
+screen whose one real control is the Let's Go button: the backdrop takes
+`cursor: pointer` edge to edge, and `.un.btn.pressed` dips the brightness of the
+entire splash on every tap. Each tap also restarts the 1.93 s line.
+
+`ButtonAnimator` now retires the backdrop's button (`setInteractable(false)` →
+`.nointeract`, so no pointer cursor and no press dip) and plays the line once on
+its own. Browsers refuse audio before the first gesture and `Source.play()`
+swallows that rejection rather than reporting it, so the code asks afterwards
+whether playback actually started; if it did not, it spends the first tap on the
+line and then unhooks. Unless that tap is Let's Go itself — the splash is over,
+and starting the line only for the button's own `Stop` to cut it off is noise.
+
+Measured: backdrop `interactable=no`, `cursor: default`, 0 press-dips in 3 taps,
+and exactly one honoured play with autoplay permitted. With autoplay blocked the
+retry arms and fires once and only once — a synthetic tap is not a trusted
+gesture, so headless cannot prove the sound itself comes out, only that the
+once-only logic holds.
+
 ## Hint timing
 
 All seven levels ship one `arrowDelaySeconds` of **10**, and it gates every hint
