@@ -159,7 +159,11 @@ body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
 .un.btn, .un.draggable {
   transition: scale .16s cubic-bezier(.2, 1.4, .4, 1), filter .16s ease-out;
 }
-.un.btn.pressed {
+/* :not(.nointeract) because a button whose interactable flag is off must not be
+   able to look pressed even if something puts the class on it. The engine only
+   adds .pressed to a live button, so this never fires in play — but the rule
+   should be true on its own, not only because of who calls it. */
+.un.btn.pressed:not(.nointeract) {
   scale: .93;
   filter: brightness(.9) saturate(1.06);
   transition: scale .06s ease-out, filter .06s ease-out;
