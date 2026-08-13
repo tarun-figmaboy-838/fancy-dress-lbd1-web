@@ -1,4 +1,4 @@
-﻿# The Fancy Dress Competition — Heavy & Light (static web build)
+# The Fancy Dress Competition — Heavy & Light (static web build)
 
 A dependency-free HTML/CSS/JS rebuild of the Unity project **Fancy Dress Lbd1**.
 No Unity, no WebGL build, no frameworks, no build step. Deploy the folder as-is.
@@ -312,7 +312,7 @@ hides both hands.
 All seven levels ship one `arrowDelaySeconds` of **10**, and it gates every hint
 a level has: the hand on Next / Try Again, the hand on the correct item, and the
 ghost drag demo. Measured end-to-end on level 1, the hand took 10.02 s to reach
-the Next button, and the drag demo usually never appeared at all â€” a child drops
+the Next button, and the drag demo usually never appeared at all — a child drops
 the item well before it is due.
 
 `HINT_DELAY` in `controllers.js` overrides it with **3 s**, and all three now
@@ -320,6 +320,65 @@ fire at 3.00 s (measured). It lives there rather than in `data.js`, which is
 regenerated from the Unity project and would lose the change. The Tutorial scene
 has its own `hintDelay` of 1 s, is already faster, and is left as authored.
 
+## Arrow label cues
+
+The Heavier / Lighter arrows used to be raised off the instruction text as it
+typed — the red one once `"down"` had been typed, the cyan one once `"up"` had.
+But the text types at a flat `clipLength / characters` and speech is not flat, so
+the two drifted apart. Decoding the 5.20 s clip and reading its RMS envelope
+gives where the words really are:
+
+| | time |
+|---|---|
+| "Heavy" | 0.38–0.70 s |
+| "things go" | 0.91–1.69 s |
+| **"down"** | **1.75–2.16 s** |
+| *(comma pause)* | 2.14–2.75 s — silence |
+| "light" | 2.75–3.08 s |
+| "things go" | 3.32–4.14 s |
+| **"up"** | **4.30–4.58 s** |
+| *(tail)* | 4.58–5.20 s — silence |
+
+Against that, neither typed cue ever coincided with its word. `"down"` fired the
+red arrow at 2.44 s — after "down" had finished, inside the silent comma pause.
+`"up"` fired the cyan one at 4.95 s, after "up" had finished, in the trailing
+silence.
+
+So instruction 7 is now driven by the recording rather than by a character
+count, in two parts.
+
+**The arrows** (`LABEL_CUE`, `cueAt`) are timed off the clip, so each appears as
+its own direction is spoken. **The line itself** (`LINE7_SPANS`, `charTimes`) has
+each word's characters spread across that word's own spoken span, with the gaps
+between words held — so the word lands on screen as the voice says it and as its
+arrow appears. All three now coincide:
+
+| | before | after | voice says it at |
+|---|---|---|---|
+| red Heavier arrow | 2.44 s | **1.77 s** | 1.75–2.16 s |
+| word "down" on screen | 2.44 s | **2.04 s** | ″ |
+| cyan Lighter arrow | 5.00 s | **4.32 s** | 4.30–4.58 s |
+| word "up" on screen | 5.00 s | **4.46 s** | ″ |
+
+The arrow fires as its word begins and the word finishes typing as the voice
+finishes saying it.
+
+Both scale with the clip, and `charTimes` requires the line's word count to match
+the table — so a re-worded or translated line falls back to exactly the flat
+typing it had before rather than mistiming itself. Only instruction 7 is paced
+this way; every other line still types flat, which is fine where no arrow depends
+on a particular word.
+
+**One clock, not a wait per character.** `E.wait` resolves on the first frame
+past its deadline, so chaining one per character accumulates the rounding: the
+text ran 0.19 s late by "down" and 0.36 s by "up", while the arrows — a single
+wait each — did not drift at all. The line is therefore revealed from one
+`E.tween` over its whole duration, which holds every character to its own
+deadline.
+
+Verified across all 16 places the arrows appear — 7 levels × (wrong + correct
+answer) plus the Tutorial's two paths, which run the same code in
+`TutorialManager.playInstruction7`. All 16 failed before, all 16 pass now.
 
 ## One deliberate deviation from the original
 

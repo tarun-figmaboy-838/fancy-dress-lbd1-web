@@ -1,4 +1,4 @@
-﻿/* ============================================================================
+/* ============================================================================
  *  controllers.js — one function per MonoBehaviour, ported line-by-line.
  *  State machines, delays, easings and edge cases follow the original C#.
  * ========================================================================== */
@@ -108,7 +108,7 @@ var Controllers = (function () {
 
   /* How long a child sits doing nothing before a hand comes to help. All seven
      levels ship arrowDelaySeconds = 10, and that one value gates every hint a
-     level has â€” the hand on Next / Try Again, the hand on the correct item, and
+     level has — the hand on Next / Try Again, the hand on the correct item, and
      the ghost drag demo. Ten seconds of a screen that has stopped talking reads
      as "nothing is happening" rather than "think", and the drag demo in
      particular almost never appeared, because a child drops the item long
@@ -119,6 +119,69 @@ var Controllers = (function () {
      pacing by editing this line. The Tutorial scene has its own hintDelay (1s),
      is already faster than this, and is left exactly as authored. */
   var HINT_DELAY = 3;
+
+  /* When each arrow appears, in seconds from the start of instruction 7.
+
+     The arrows used to be cued off the instruction text as it types — the red
+     one when "down" had been typed, the cyan one when "up" had. But the text
+     types at a flat clipLength/characters, and speech is not flat, so the two
+     drifted apart. Decoding the clip and reading its RMS envelope gives where
+     the words really are in the 5.20s recording:
+
+       0.38-0.70  "Heavy"           2.14-2.75  (pause on the comma)
+       0.91-1.69  "things go"       2.75-3.08  "light"
+       1.75-2.16  "down"            3.32-4.14  "things go"
+                                    4.30-4.58  "up"
+                                    4.58-5.20  (trailing silence)
+
+     Typed cues put the red arrow at 2.44s — after "down" had finished, inside
+     the silent comma pause — and the cyan one at 4.95s, after "up" had finished,
+     in the trailing silence. Neither ever coincided with the word it belongs to.
+
+     So the arrows are timed to the voice instead: each appears exactly as its
+     own direction is spoken. The values are read off the recording above, and
+     scale with the clip so a re-recorded line degrades sensibly rather than
+     firing past the end of a shorter one. */
+  var LABEL_CUE = { down: 1.75, up: 4.30, clip: 5.20 };
+
+  /* The cue, rescaled if the clip is not the one it was measured against. */
+  function cueAt(sec, clipLength) {
+    return clipLength > 0 ? sec * (clipLength / LABEL_CUE.clip) : sec;
+  }
+
+  /* The spoken span of each of instruction 7's eight words, same envelope:
+
+       Heavy   0.38-0.70     light   2.75-3.08
+       things  0.91-1.38     things  3.32-3.61
+       go      1.38-1.74     go      3.91-4.14
+       down,   1.76-2.16     up!     4.30-4.58
+
+     Every line in the game types at a flat clipLength/characters, which is fine
+     where nothing depends on a particular word. Instruction 7 is the exception:
+     its two direction words raise the arrows, so the word wants to be on screen
+     as the voice says it and as its arrow appears. Flat typing put "down" up
+     0.68s after the voice had said it, and the arrow was a third thing again.
+     Pacing the characters across their own word's span puts all three together. */
+  var LINE7_SPANS = [
+    [0.38, 0.70], [0.91, 1.38], [1.38, 1.74], [1.76, 2.16],
+    [2.75, 3.08], [3.32, 3.61], [3.91, 4.14], [4.30, 4.58]
+  ];
+
+  /* When each character of `msg` should appear, or null to type it flat. The
+     word count must match the table, so a re-worded or translated line falls
+     back to exactly the behaviour it had before rather than mistiming itself. */
+  function charTimes(msg, spans, clipLength) {
+    var words = msg.split(' ');
+    if (!spans || words.length !== spans.length) return null;
+    var k = clipLength > 0 ? clipLength / LABEL_CUE.clip : 1;
+    var times = [];
+    for (var w = 0; w < words.length; w++) {
+      var a = spans[w][0] * k, b = spans[w][1] * k;
+      var n = words[w].length + (w ? 1 : 0);   // the leading space is this word's
+      for (var c = 0; c < n; c++) times.push(a + (b - a) * (c / n));
+    }
+    return times;
+  }
 
   /* Put the hand's visible centre — not its node centre — on a stage point.
      dropFrac nudges it down by a fraction of its own height. */
@@ -406,6 +469,19 @@ var Controllers = (function () {
       });
     }
 
+    /* Each arrow appears as its own direction is spoken, timed off the clip
+       rather than off the typed text — see LABEL_CUE. */
+    function cueArrows(clipLength, tok) {
+      [[LABEL_CUE.down, f.arrowDown], [LABEL_CUE.up, f.arrowUp]].forEach(function (c) {
+        if (!c[1]) return;
+        self.runner.run(function (t) {
+          return E.wait(cueAt(c[0], clipLength), t).then(function () {
+            if (!E.activeSelf(c[1])) popupArrow(c[1], 0, tok);
+          });
+        }, tok);
+      });
+    }
+
     /* IEnumerator PlayInstruction7WithArrows */
     function playInstruction7(tok) {
       E.setActive(f.arrowDown, false);
@@ -419,16 +495,24 @@ var Controllers = (function () {
       var msg = f.instruction7;
       var clipLength = f.instruction7Audio ? E.Audio.len(f.instruction7Audio) : 2;
       var typingDelay = clipLength / Math.max(1, msg.length);
-      var i = 0, cur = '';
-      var loop = function () {
-        if (i >= msg.length) return E.wait(0.5, tok);
-        cur += msg[i++];
-        E.setText(f.instructionText, cur);
-        if (cur.indexOf('down') >= 0 && !E.activeSelf(f.arrowDown)) popupArrow(f.arrowDown, 0, tok);
-        if (cur.indexOf('up') >= 0 && !E.activeSelf(f.arrowUp)) popupArrow(f.arrowUp, 0, tok);
-        return E.wait(typingDelay, tok).then(loop);
-      };
-      return loop();
+      var times = charTimes(msg, LINE7_SPANS, clipLength);
+      var dueAt = function (k) { return times ? times[k] : k * typingDelay; };
+      var total = dueAt(msg.length - 1), shown = 0;
+      cueArrows(clipLength, tok);
+      /* One clock for the whole line rather than a wait chained per character:
+         each hop resolves on the first frame past its deadline, and 41 of those
+         roundings accumulate — the text was 0.36s behind the voice by "up",
+         while the arrows, being a single wait each, were not. */
+      return E.tween(total, 'Linear', function (u) {
+        var t = u * total, k = shown;
+        while (k < msg.length && dueAt(k) <= t) k++;
+        if (k !== shown) { shown = k; E.setText(f.instructionText, msg.slice(0, k)); }
+      }, tok).then(function () {
+        E.setText(f.instructionText, msg);
+        // hold out the rest of the clip, so the beat after the line is unchanged
+        var rem = Math.max(0, clipLength - total);
+        return rem > 0 ? E.wait(rem, tok) : Promise.resolve();
+      }).then(function () { return E.wait(0.5, tok); });
     }
 
     function showCorrectHint() {
@@ -1502,6 +1586,22 @@ var Controllers = (function () {
       }, tok);
     }
 
+    /* label1 is the "down" side and label2 the "up" side, so each is raised as
+       its own direction is spoken — timed off the clip rather than off the typed
+       text, which does not track the voice. See LABEL_CUE. */
+    function cueLabels(clipLength, tok) {
+      [[LABEL_CUE.down, f.label1], [LABEL_CUE.up, f.label2]].forEach(function (c) {
+        if (!c[1]) return;
+        self.runner.run(function (t) {
+          return E.wait(cueAt(c[0], clipLength), t).then(function () {
+            if (E.activeSelf(c[1])) return;
+            updateLabelPositions();
+            popupLabel(c[1], 0, tok);
+          });
+        }, tok);
+      });
+    }
+
     function playInstruction7WithLabels(tok) {
       self.isInstructionPlaying = true;
       E.setInteractable(f.bookButton, false);
@@ -1512,24 +1612,26 @@ var Controllers = (function () {
       var msg = f.instruction7;
       var clipLength = f.instruction7Audio ? E.Audio.len(f.instruction7Audio) : 2;
       var typingDelay = clipLength / Math.max(1, msg.length);
-      var i = 0, cur = '';
+      var times = charTimes(msg, LINE7_SPANS, clipLength);
+      var dueAt = function (k) { return times ? times[k] : k * typingDelay; };
+      var total = dueAt(msg.length - 1), shown = 0;
       updateLabelPositions();
-      var loop = function () {
-        if (i >= msg.length) {
-          return E.wait(f.instructionEndDelay, tok)
-            .then(function () { self.isInstructionPlaying = false; });
-        }
-        cur += msg[i++];
-        E.setText(f.instructionText, cur);
-        if (cur.indexOf('down') >= 0 && !E.activeSelf(f.label1)) {
-          updateLabelPositions(); popupLabel(f.label1, 0, tok);
-        }
-        if (cur.indexOf('up') >= 0 && !E.activeSelf(f.label2)) {
-          updateLabelPositions(); popupLabel(f.label2, 0, tok);
-        }
-        return E.wait(typingDelay, tok).then(loop);
-      };
-      return loop();
+      cueLabels(clipLength, tok);
+      /* One clock for the whole line rather than a wait chained per character:
+         each hop resolves on the first frame past its deadline, and 41 of those
+         roundings accumulate — the text was 0.36s behind the voice by "up",
+         while the arrows, being a single wait each, were not. */
+      return E.tween(total, 'Linear', function (u) {
+        var t = u * total, k = shown;
+        while (k < msg.length && dueAt(k) <= t) k++;
+        if (k !== shown) { shown = k; E.setText(f.instructionText, msg.slice(0, k)); }
+      }, tok).then(function () {
+        E.setText(f.instructionText, msg);
+        // hold out the rest of the clip, so the beat after the line is unchanged
+        var rem = Math.max(0, clipLength - total);
+        return rem > 0 ? E.wait(rem, tok) : Promise.resolve();
+      }).then(function () { return E.wait(f.instructionEndDelay, tok); })
+        .then(function () { self.isInstructionPlaying = false; });
     }
 
     // --------------------------------------------------------- selection ----
