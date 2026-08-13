@@ -345,6 +345,10 @@ var Controllers = (function () {
     }
 
     register(hostId, 'ButtonAnimator', function start() {
+      // this one already answers with the recorded btn.mp3 below
+      var goNode = E.node(go);
+      if (goNode && f.buttonClickAudio) goNode.ownClickSound = true;
+
       var bg = splash();
       if (bg) {
         E.setInteractable(bg, false);             // .nointeract → no pointer, no press dip
@@ -516,6 +520,7 @@ var Controllers = (function () {
 
     function popupArrow(id, delay, tok) {
       E.setActive(id, true);
+      E.Sfx.play('sparkle');
       glowLabel(id, String(id) === String(f.arrowDown));
       E.setScale(id, 0);
       self.runner.run(function (t2) {
@@ -647,6 +652,7 @@ var Controllers = (function () {
     }
 
     function wrongFlowBook(tok) {
+      E.Sfx.play('wrong');                 // the levels sound this too
       E.setActive(f.Messagebar, false);
       anim.enabled = false;
       E.setSprite(f.bookButton, f.bookWrongSprite);
@@ -858,6 +864,7 @@ var Controllers = (function () {
 
     function onBeginDrag(ev) {
       if (!self.dragEnabled || self.isLockedAfterDrop) return false;
+      E.Sfx.play('pick');
       self.wasDroppedOnBasket = false;
       var t = tutorial();
       if (t && self.itemData) t.onItemDragStarted(self.itemData);
@@ -942,6 +949,10 @@ var Controllers = (function () {
       });
       if (closest) { previewGame = null; closest.forceDrop(self); return; }
       endScalePreview();
+      /* Sounded here rather than inside returnToOriginalPosition, which is also
+         what resetGame calls on every item when a level starts — that would
+         open each level with a chord of shrugs. */
+      E.Sfx.play('putBack');
       self.returnToOriginalPosition();
     }
 
@@ -1053,6 +1064,7 @@ var Controllers = (function () {
       if (item.isLockedAfterDrop || !item.dragEnabled) { item.returnToOriginalPosition(); return; }
       if (self.currentItemInBasket !== null) { item.returnToOriginalPosition(); return; }
       self.currentItemInBasket = item;
+      E.Sfx.play('drop');
       gm.onItemDroppedInBasket(item.itemData, self.isLeftBasket, self.node, item);
       item.onDropSuccess(self.node);
       item.wasDroppedOnBasket = true;
@@ -1646,6 +1658,7 @@ var Controllers = (function () {
     function popupLabel(id, delay, tok) {
       if (!id) return;
       E.setActive(id, true);
+      E.Sfx.play('sparkle');
       glowLabel(id, String(id) === String(f.label1));
       E.setScale(id, 0);
       self.runner.run(function (t2) {
@@ -1742,6 +1755,10 @@ var Controllers = (function () {
     }
 
     function wrongSelectionFlow(isBook, tok) {
+      /* The correct answer has had a sound since the start; the wrong one had
+         nothing at all, so the two outcomes were only distinguishable by
+         reading. Soft, and ahead of the explanation that follows. */
+      E.Sfx.play('wrong');
       if (isBook) { E.setSprite(f.bookImage, f.bookWrongSprite); E.setNativeSize(f.bookImage); }
       else { E.setSprite(f.ballImage, f.ballWrongSprite); E.setNativeSize(f.ballImage); }
       return playInstruction7WithLabels(tok).then(function () {

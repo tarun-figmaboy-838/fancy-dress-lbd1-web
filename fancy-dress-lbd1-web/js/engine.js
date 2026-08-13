@@ -742,9 +742,14 @@ var Engine = (function () {
       if (!n.button) return;
       n.el.classList.add('btn');
       if (!n.button.interactable) n.el.classList.add('nointeract');
+      /* Feedback belongs on the press, not on the release: a child holding a
+         finger down wants to know the game noticed before they let go. */
       n.el.addEventListener('pointerdown', function (e) {
         if (!n.button.interactable) return;
         n.el.classList.add('pressed');
+        // a button carrying its own recorded click keeps it; two clicks on one
+        // press is just a thicker click (see ButtonAnimator and btn.mp3)
+        if (!n.ownClickSound) Sfx.play('tap');
       });
       n.el.addEventListener('pointerup', function () { n.el.classList.remove('pressed'); });
       n.el.addEventListener('pointerleave', function () { n.el.classList.remove('pressed'); });
@@ -1088,6 +1093,58 @@ var Engine = (function () {
         var i = (opts && opts.index) || 0;
         note(semi(12 + i * 4), t, 0.4, 0.4, 'triangle');
         note(semi(24 + i * 4), t + 0.01, 0.28, 0.16, 'sine');
+      },
+
+      /* ---- interaction cues --------------------------------------------
+         The three above mark a *result* and are allowed to be an event. These
+         mark an *action*, and a child performs a dozen of them a minute — so
+         they are short, quiet, and have no tail to pile up. Each is detuned a
+         little on every fire: the same sample twice in a row is what makes a
+         game sound mechanical, and children notice it faster than adults.
+         All of them sit under the voice-over, which is always the priority. */
+
+      /* A finger landing on something that answers back. Bright, tiny, gone. */
+      tap: function (t) {
+        var d = rand(-1.2, 1.2);
+        note(semi(19 + d), t, 0.07, 0.26, 'triangle');
+        note(semi(31 + d), t + 0.005, 0.05, 0.09, 'sine');
+      },
+
+      /* Lifting an item off its counter: two notes up, so it reads as "off". */
+      pick: function (t) {
+        var d = rand(-0.8, 0.8);
+        note(semi(7 + d), t, 0.10, 0.20, 'triangle');
+        note(semi(14 + d), t + 0.05, 0.13, 0.14, 'triangle');
+      },
+
+      /* Landing in the pan. A soft body under a small bell — the low end is
+         what makes it read as weight arriving rather than as another tap. */
+      drop: function (t) {
+        note(semi(-17), t, 0.17, 0.32, 'sine');
+        note(semi(12 + rand(-0.6, 0.6)), t + 0.03, 0.22, 0.13, 'triangle');
+        noise(t, 0.09, 0.09, 1200, 300);
+      },
+
+      /* Let go somewhere that is not a pan: `pick` played downwards. Nothing
+         was done wrong, so it is a shrug, not a rejection. */
+      putBack: function (t) {
+        note(semi(12), t, 0.10, 0.16, 'triangle');
+        note(semi(5), t + 0.06, 0.16, 0.14, 'triangle');
+      },
+
+      /* A wrong answer still has to be safe to hear forty times. Two soft
+         notes down a minor third, sine, well under the voice that is about to
+         explain the balance — a nudge, never a buzzer. */
+      wrong: function (t) {
+        note(semi(4), t, 0.22, 0.22, 'sine');
+        note(semi(-1), t + 0.14, 0.34, 0.20, 'sine');
+      },
+
+      /* The Heavier / Lighter arrow arriving. Barely there on purpose: it
+         lands mid-sentence, so it may punctuate the voice but never mask it. */
+      sparkle: function (t) {
+        note(semi(24 + rand(-1, 1)), t, 0.18, 0.09, 'sine');
+        note(semi(31), t + 0.04, 0.13, 0.04, 'sine');
       }
     };
 

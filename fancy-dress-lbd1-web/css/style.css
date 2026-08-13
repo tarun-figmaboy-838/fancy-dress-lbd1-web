@@ -119,6 +119,14 @@ body.askRotate #rotate { display: flex; }
 .un.tmp { overflow: visible; }
 .tmp-inner { position: absolute; display: flex; }
 
+/* ---- what the pointer says about a thing --------------------------------- */
+/* The hand appears on exactly the things that answer to it and nowhere else.
+   A Button whose interactable flag is off is scenery for the moment, so it goes
+   back to the plain arrow — the game switches that flag constantly (items are
+   inert while an instruction plays, live when it is time to choose). Where an
+   Image carries raycastPadding the element itself is pointer-events:none and
+   only the inset .hit child is hittable, so the hand appears over the artwork
+   rather than over the transparent margin around it. */
 .un.btn { cursor: pointer; }
 .un.btn.nointeract { cursor: default; }
 
@@ -131,8 +139,50 @@ body.dragging, body.dragging .un, body.dragging .hit,
 body.dragging .un.draggable,
 body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
 
-/* Button ColorTint transition approximation on press */
-.un.btn.pressed { filter: brightness(0.92); }
+/* ---- buttons that feel like buttons -------------------------------------- */
+/* The squash uses the individual `scale` property, not `transform`. Two reasons
+   it cannot be either of the obvious things:
+
+   `transform` on the element is out — the engine writes the authored rotate and
+   scale there inline, and an inline transform beats a stylesheet one, so a press
+   would be ignored or would wipe the item's own tilt. `scale` is a separate
+   property that composes with that inline transform instead of replacing it.
+
+   The ::before sprite layer is out too — in the seven levels the visible artwork
+   is a *child* node (bookImage / ballImage) and the Button sits on the parent,
+   so a ::before effect there squashes an empty layer. `scale` and `filter` on
+   the element both reach the whole subtree, which is what has to move.
+
+   Press is a squash and a dim together — that pairing is what reads as
+   physical. The release is slower than the press, so the button lands back
+   rather than snapping. */
+.un.btn, .un.draggable {
+  transition: scale .16s cubic-bezier(.2, 1.4, .4, 1), filter .16s ease-out;
+}
+.un.btn.pressed {
+  scale: .93;
+  filter: brightness(.9) saturate(1.06);
+  transition: scale .06s ease-out, filter .06s ease-out;
+}
+
+/* A mouse can hover; a finger cannot. Lift only where hovering really exists,
+   so a tablet never gets a state it can only enter by tapping and holding. */
+@media (hover: hover) and (pointer: fine) {
+  .un.btn:not(.nointeract):hover,
+  .un.draggable:hover { scale: 1.04; filter: brightness(1.07); }
+  .un.btn:not(.nointeract):hover.pressed { scale: .93; }
+}
+
+/* Motion is the part that can be dropped; the brightness change carries the
+   information, so it stays. */
+@media (prefers-reduced-motion: reduce) {
+  .un.btn, .un.draggable { transition: filter .1s ease-out; }
+  .un.btn.pressed { scale: 1; }
+  @media (hover: hover) and (pointer: fine) {
+    .un.btn:not(.nointeract):hover,
+    .un.draggable:hover { scale: 1; }
+  }
+}
 
 /* ---- guidance: the dashed drag path draws itself in, then glows ----------- */
 /* Applied to the Vector_10 arrow. Both the reveal and the glow live on the

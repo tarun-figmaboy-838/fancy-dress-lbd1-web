@@ -288,6 +288,62 @@ like it is lying in the bowl can now override that per instance with
 (levels 1, 2 and 7) use `[-9, 10]`, scale 1, 12°, and share one tray pose
 (`6.9, 39.2`, scale 1.2, 28°) so the pencil looks the same wherever it appears.
 
+## Interaction feel: sound, press, cursor
+
+**Sound.** `assets/audio` ships voice-over and one button click and nothing else,
+so every game sound is synthesised in `Engine.Sfx` — no files to load, nothing to
+fall behind the animation it punctuates, and retuning is a number rather than a
+re-export. There were three cues, and all three marked a *result*
+(`correct`, `celebrate`, `star`); every *action* was silent. Six more:
+
+| cue | fires on | shape |
+|---|---|---|
+| `tap` | pressing any live button | one bright blip, gone in 70 ms |
+| `pick` | lifting an item off its counter | two notes up — "off" |
+| `drop` | an item landing in a pan | soft low body under a small bell |
+| `putBack` | released anywhere that is not a pan | `pick` downwards — a shrug, not a rejection |
+| `wrong` | the wrong item chosen | two soft notes down a minor third |
+| `sparkle` | a Heavier / Lighter arrow arriving | barely-there ping |
+
+A child performs a dozen actions a minute, so these are short, quiet, and
+tail-free, and each is **detuned a little on every fire** — the same sample twice
+in a row is what makes a game sound mechanical, and children hear it before
+adults do. All of them sit under the voice-over, which always wins. The wrong
+answer had no sound at all before, so the two outcomes were distinguishable only
+by reading. A button that carries its own recorded click (Let's Go, `btn.mp3`)
+sets `ownClickSound` and keeps it rather than firing both.
+
+**Press.** The squash uses the individual `scale` property, not `transform`, and
+sits on the element rather than the `::before` sprite layer. Both matter:
+`transform` on the element is written inline by the engine for the authored
+rotate/scale and an inline transform beats a stylesheet one; and in the seven
+levels the visible artwork is a *child* node (`bookImage`/`ballImage`) with the
+Button on the parent, so a `::before` effect there squashes an empty layer.
+`scale` composes with the inline transform, and `scale` + `filter` on the element
+both reach the whole subtree. Measured: `scale .93` with
+`brightness(.9) saturate(1.06)` held while pressed, back to rest on release.
+Hover lift is behind `(hover: hover) and (pointer: fine)` so a tablet never gets
+a state it can only enter by tapping and holding; under `prefers-reduced-motion`
+the scale drops and the brightness change stays, since that is the half carrying
+the information.
+
+**Cursor.** The hand appears on exactly what answers to it. Verified with
+`elementFromPoint` at the centre of every target, per phase, rather than by
+reading the stylesheet:
+
+| | instructions | drag phase | choosing | Next shown |
+|---|---|---|---|---|
+| item being dragged | `default` | **`grab`** | `pointer` | `default` |
+| the other item | `default` | `default` | `pointer` | `default` |
+| Next button | hidden | hidden | hidden | **`pointer`** |
+| backdrop / table | `default` | `default` | `default` | `default` |
+
+An `Image` with `raycastPadding` leaves the element `pointer-events: none` and
+only the inset `.hit` child hittable, so the hand appears over the artwork rather
+than the transparent margin around it. A Button whose `interactable` flag is off
+is scenery for that moment and goes back to the plain arrow — the game toggles
+that flag constantly, and the cursor follows it.
+
 ## Two soft-locks that had to be fixed
 
 **Try Again could not be answered.** `OnTryAgain` opened the item selection and
