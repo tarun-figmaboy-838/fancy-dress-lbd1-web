@@ -177,6 +177,58 @@ body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
   .un.btn:not(.nointeract):hover.pressed { scale: .93; }
 }
 
+/* ---- the title-line button on the splash --------------------------------- */
+/* It is parented into the splash, which lives inside the 1920x1080 stage, so
+   these are design pixels and it scales and centres with everything else. 124
+   design px is about 78 real px on the smallest screen tested — comfortably
+   above a child-sized target, and it sits top-left where it is clear of both
+   the artwork and the Let's Go button.
+
+   Not a .un node: it is a real <button>, so it takes keyboard focus and reads
+   as a control to assistive tech, which the sprite-and-div buttons cannot. */
+.voBtn {
+  position: absolute;
+  left: 46px; top: 46px;
+  width: 124px; height: 124px;
+  padding: 0; border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  background: #3aa9e8;
+  /* the flat lower edge is what makes it read as a raised, pressable thing */
+  box-shadow: 0 8px 0 #1d7cb2, 0 14px 24px rgba(10, 55, 85, .34);
+  display: grid; place-items: center;
+  transition: transform .11s cubic-bezier(.2, 1.4, .4, 1),
+              box-shadow .11s ease-out, filter .11s ease-out;
+}
+.voBtn svg { width: 62%; height: 62%; overflow: visible; }
+.voBtn svg path { fill: #fff; }
+.voBtn svg path.w1, .voBtn svg path.w2 {
+  fill: none; stroke: #fff; stroke-width: 2.1;
+  stroke-linecap: round;
+}
+/* the far wave only shows while the line is actually playing */
+.voBtn svg path.w2 { opacity: .45; }
+.voBtn.playing svg path.w2 { animation: vo-wave .9s ease-in-out infinite; }
+@keyframes vo-wave {
+  0%, 100% { opacity: .35; }
+  50%      { opacity: 1; }
+}
+
+.voBtn:active {
+  transform: translateY(6px);
+  box-shadow: 0 2px 0 #1d7cb2, 0 5px 12px rgba(10, 55, 85, .3);
+  filter: brightness(.96);
+}
+@media (hover: hover) and (pointer: fine) {
+  .voBtn:hover { filter: brightness(1.08); }
+}
+.voBtn:focus-visible { outline: 5px solid #ffd166; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .voBtn { transition: filter .1s ease-out; }
+  .voBtn:active { transform: none; }
+  .voBtn.playing svg path.w2 { animation: none; opacity: 1; }
+}
+
 /* ---- a button that is waiting to be tapped ------------------------------- */
 /* Next and Try Again carry their artwork on the button node itself, so the
    attract loop runs on the ::before sprite layer. That leaves the element's own

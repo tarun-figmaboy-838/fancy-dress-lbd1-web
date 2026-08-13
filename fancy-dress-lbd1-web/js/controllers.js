@@ -1,5 +1,5 @@
-﻿/* ============================================================================
- *  controllers.js â€” one function per MonoBehaviour, ported line-by-line.
+/* ============================================================================
+ *  controllers.js — one function per MonoBehaviour, ported line-by-line.
  *  State machines, delays, easings and edge cases follow the original C#.
  * ========================================================================== */
 var Controllers = (function () {
@@ -58,7 +58,7 @@ var Controllers = (function () {
     Promise.resolve()
       /* The body starts a microtask late, so a stop that lands in between used
          to be ignored: coroutines here open by calling AudioSource.Play(), and
-         only then await something the token can cancel â€” a stopped line still
+         only then await something the token can cancel — a stopped line still
          got its first word out over the top of the next one. */
       .then(function () { if (t.dead) throw CANCEL_LOCAL; return fn(t); })
       .catch(function (e) { if (!E.isCancel(e)) console.error(e); });
@@ -66,7 +66,7 @@ var Controllers = (function () {
   };
 
   // ------------------------------------------------------- tween utilities --
-  /* DOTween .DOScale(to, dur).SetEase(ease) â€” from the current scale */
+  /* DOTween .DOScale(to, dur).SetEase(ease) — from the current scale */
   function doScale(id, to, dur, ease, tok) {
     var from = E.getScale(id)[0];
     return E.tween(dur, ease, function (u) { E.setScale(id, from + (to - from) * u); }, tok);
@@ -102,13 +102,13 @@ var Controllers = (function () {
   var HAND_ART = { cx: 0.512, cy: 0.60 };
 
   /* On a button the hand reads better sitting low, over the button's lower
-     edge, rather than centred on it â€” 0.15 of the hand's own height, so it
+     edge, rather than centred on it — 0.15 of the hand's own height, so it
      holds at either scale the two scenes use. */
   var BUTTON_HINT_DROP = 0.15;
 
   /* How long a child sits doing nothing before a hand comes to help. All seven
      levels ship arrowDelaySeconds = 10, and that one value gates every hint a
-     level has â€” the hand on Next / Try Again, the hand on the correct item, and
+     level has — the hand on Next / Try Again, the hand on the correct item, and
      the ghost drag demo. Ten seconds of a screen that has stopped talking reads
      as "nothing is happening" rather than "think", and the drag demo in
      particular almost never appeared, because a child drops the item long
@@ -125,7 +125,7 @@ var Controllers = (function () {
      seconds dragging an item around the table is not idle, and the old timer
      would put a hand on the screen while they were still working. This one is
      pushed back by every action and only runs out when the game has actually
-     gone quiet â€” which is also what makes a hint come *back* after they try
+     gone quiet — which is also what makes a hint come *back* after they try
      something and stop again.
 
      Taps count. Pointer movement counts only while a drag is in progress: on a
@@ -158,7 +158,7 @@ var Controllers = (function () {
 
   /* When each arrow appears, in seconds from the start of instruction 7.
 
-     The arrows used to be cued off the instruction text as it types â€” the red
+     The arrows used to be cued off the instruction text as it types — the red
      one when "down" had been typed, the cyan one when "up" had. But the text
      types at a flat clipLength/characters, and speech is not flat, so the two
      drifted apart. Decoding the clip and reading its RMS envelope gives where
@@ -170,11 +170,11 @@ var Controllers = (function () {
                                     4.30-4.58  "up"
                                     4.58-5.20  (trailing silence)
 
-     Typed cues put the red arrow at 2.44s â€” after "down" had finished, inside
-     the silent comma pause â€” and the cyan one at 4.95s, after "up" had finished,
+     Typed cues put the red arrow at 2.44s — after "down" had finished, inside
+     the silent comma pause — and the cyan one at 4.95s, after "up" had finished,
      in the trailing silence. Neither ever coincided with the word it belongs to.
 
-     So the arrows are timed to the voice instead â€” and to the END of their own
+     So the arrows are timed to the voice instead — and to the END of their own
      word, not its start. The word is typed across the span it is spoken over
      (see LINE7_SPANS), so an arrow cued to the start of the word appears on the
      same frame as the word's first letter and the two read as one event. Cued to
@@ -225,7 +225,7 @@ var Controllers = (function () {
     return times;
   }
 
-  /* Put the hand's visible centre â€” not its node centre â€” on a stage point.
+  /* Put the hand's visible centre — not its node centre — on a stage point.
      dropFrac nudges it down by a fraction of its own height. */
   function placeHand(id, stageX, stageY, dropFrac) {
     var n = E.node(id);
@@ -236,7 +236,7 @@ var Controllers = (function () {
   }
 
   /* Next and Try Again are the only thing left to do when they appear, so they
-     breathe until they are used â€” otherwise they sit as still as the table and
+     breathe until they are used — otherwise they sit as still as the table and
      a child who cannot read has nothing telling them where to go. Driven by a
      class so the motion itself stays in CSS with the rest of it, and so it
      cannot fight the press, which lives on a different property. */
@@ -293,8 +293,8 @@ var Controllers = (function () {
   }
 
   /* Spelling fixes for the authored instruction copy. Level 2 writes "toycar"
-     in instruction4 while its own instruction2 â€” and the voice-over recording
-     it is typed against, Let_us_place_the_toy_car_on_the_balance.ogg â€” say
+     in instruction4 while its own instruction2 — and the voice-over recording
+     it is typed against, Let_us_place_the_toy_car_on_the_balance.ogg — say
      "toy car". Corrected here rather than in data.js, which is regenerated from
      the Unity project. Only the on-screen lines are touched; the sibling
      *Audio fields are asset paths and must keep their filenames. */
@@ -303,11 +303,11 @@ var Controllers = (function () {
      tonnes, so the balance tipping toward the ball reads as nonsense to a child
      who pictures the real vehicle. The artwork is unmistakably a toy, so the
      copy is what is wrong. The optional leading "toy" makes the rule idempotent
-     â€” running it over an already-corrected line cannot produce "toy toy bus" â€”
+     — running it over an already-corrected line cannot produce "toy toy bus" —
      and \b stops it touching "busy" or a longer word. Only the on-screen lines
      are rewritten; itemName is untouched (no item is named "bus", but the ghost
      hint matches on those names) and so are the *Audio paths, which are
-     filenames. The recordings still say "bus" â€” see README. */
+     filenames. The recordings still say "bus" — see README. */
   var COPY_FIXES = [
     [/\btoycar\b/gi, 'toy car'],
     [/(\btoy\s+)?\bbus\b/gi, 'toy bus']
@@ -320,7 +320,7 @@ var Controllers = (function () {
     });
   }
 
-  /* Base1/Base2 â€” the two counters the items start on (Group_485). They leave
+  /* Base1/Base2 — the two counters the items start on (Group_485). They leave
      the table together, once BOTH items are in the pans. Retiring a counter the
      moment its own item is lifted breaks the table up mid-move and strands the
      item still waiting to be dragged beside a gap where its neighbour stood;
@@ -348,7 +348,7 @@ var Controllers = (function () {
     var go = f.goButton, panel = f.gameplayPanel;
 
     /* The splash backdrop is itself a full-screen Button, and its only OnClick
-       plays the title line â€” which is PlayOnAwake:0, so tapping the artwork was
+       plays the title line — which is PlayOnAwake:0, so tapping the artwork was
        the only way to hear it. That makes the entire opening screen advertise
        itself as pressable: cursor:pointer edge to edge, and a brightness dip
        over the whole splash on every tap, on a screen whose one real control is
@@ -360,30 +360,52 @@ var Controllers = (function () {
       return n && n.parent ? n.parent.id : null;
     }
 
-    /* Set when the platform refuses to autoplay the title: the Let's Go tap
-       then owes it. */
-    var bgId = null, titleOwed = false;
+    var bgId = null, voBtn = null;
 
-    /* Play it on arrival if the platform allows that. Every browser refuses
-       audio before the first gesture and Source.play() swallows the rejection
-       rather than reporting it, so ask afterwards whether it actually started.
+    /* A control for the title line. The backdrop is inert now, and where the
+       browser blocks autoplay the line had no way of being heard except on the
+       way out — which meant holding the tutorial back while it played. A button
+       says what it does, can be used as often as a child likes, and lets the
+       game start the moment they tap Let's Go.
 
-       Where autoplay IS permitted â€” an app WebView with
-       mediaPlaybackRequiresUserGesture off, or an iframe with allow="autoplay" â€”
-       this plays on its own and nothing below ever runs.
-
-       Where it is refused, the line is NOT handed to the next stray tap. Doing
-       that is what kept the backdrop feeling like the trigger even after its
-       button was retired: the child taps the picture, the line starts, and the
-       picture looks responsible. Only the one deliberate control gets it. */
-    function playTitleOnce(id) {
-      var s = E.Audio.source(id);
-      s.play();
-      self.runner.run(function (tok) {
-        return E.wait(0.25, tok).then(function () {
-          if (!s.isPlaying()) titleOwed = true;
-        });
+       Built here rather than in data.js: it is not in the Unity scene, and
+       data.js is regenerated. It is parented into the splash so it scales with
+       the stage and disappears with it, and it is a real <button> so it takes
+       keyboard focus like one. */
+    function addTitleButton(id) {
+      var host = E.node(id);
+      if (!host) return null;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'voBtn';
+      b.setAttribute('aria-label', 'Play the title again');
+      b.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M4 9.5h3.2L12 5.6v12.8L7.2 14.5H4z"/>' +
+        '<path class="w1" d="M15.6 9.2a4 4 0 0 1 0 5.6"/>' +
+        '<path class="w2" d="M18.3 6.6a7.7 7.7 0 0 1 0 10.8"/>' +
+        '</svg>';
+      host.el.appendChild(b);
+      b.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var s = E.Audio.source(id);
+        s.stop();               // tapping it again restarts rather than layering
+        s.play();
+        b.classList.remove('playing');
+        void b.offsetWidth;     // so a second tap replays the ripple
+        b.classList.add('playing');
       });
+      return b;
+    }
+
+    /* Play it on arrival where the platform allows that — an app WebView with
+       mediaPlaybackRequiresUserGesture off, or an iframe with allow="autoplay".
+       Every browser refuses audio before the first gesture and no code gets
+       around it; where it is refused, the button above is how the line is heard,
+       which is the whole reason for having one. It is never handed to a stray
+       tap: that is what made the backdrop feel like the trigger. */
+    function playTitleOnce(id) {
+      E.Audio.source(id).play();
     }
 
     register(hostId, 'ButtonAnimator', function start() {
@@ -393,7 +415,8 @@ var Controllers = (function () {
 
       bgId = splash();
       if (bgId) {
-        E.setInteractable(bgId, false);           // .nointeract â†’ no pointer, no press dip
+        E.setInteractable(bgId, false);           // .nointeract → no pointer, no press dip
+        voBtn = addTitleButton(bgId);
         playTitleOnce(bgId);
       }
 
@@ -410,21 +433,15 @@ var Controllers = (function () {
         if (self.loop) self.loop.kill();
         E.setInteractable(go, false);
 
-        /* If autoplay was refused, this tap is the first gesture the page has
-           had and so the title line's only chance. Hold the gameplay panel
-           until it has finished: the tutorial opens by speaking, and letting
-           the two overlap would lose both. Where autoplay was allowed the line
-           has long since played and this is the authored delay, untouched. */
-        var hold = f.audioDelayBeforeDisable;
-        if (titleOwed && bgId) {
-          titleOwed = false;
-          var title = E.Audio.source(bgId);
-          title.play();
-          hold = Math.max(hold, E.Audio.len(title.clip) || 0);
-        }
+        /* The title line goes quiet with the screen it belongs to, and the
+           gameplay panel is no longer held back waiting for it — the button is
+           there for a child who wants to hear it, so the game can start on the
+           tap that asked for it. */
+        if (bgId) E.Audio.source(bgId).stop();
+        if (voBtn) voBtn.style.display = 'none';
 
         self.runner.run(function (tok) {
-          return E.wait(hold, tok).then(function () {
+          return E.wait(f.audioDelayBeforeDisable, tok).then(function () {
             E.setActive(go, false);
             E.setActive(panel, true);
             tickControllers();
@@ -456,7 +473,7 @@ var Controllers = (function () {
        never switch it back off, while switching its Hand/Image children off
        partway through. The container is a 1702x423 Image with no sprite, alpha 0
        and raycastTarget on, so once the demo has played it parks an invisible
-       hit shape across BOTH items and swallows every tap â€” the tutorial can
+       hit shape across BOTH items and swallows every tap — the tutorial can
        never be answered. Retire the container with the clip that raised it. */
     /* Both hint hands share one dashed-arrow sprite, which curves up-and-RIGHT.
        That is correct for the left tray (its basket is up-right) but backwards
@@ -480,7 +497,7 @@ var Controllers = (function () {
 
     /* The demo places the book first and the ball second, so the ball clip is
        the one that empties the table. Neither clip touches the counters
-       themselves â€” only the items standing on them. */
+       themselves — only the items standing on them. */
     function demoCounters() {
       return ['items /Item 2', 'items /Item 1'].map(function (path) {
         var n = E.findByPath(f.bookAnimator, path);
@@ -599,7 +616,7 @@ var Controllers = (function () {
     }
 
     /* Each arrow appears as its own direction is spoken, timed off the clip
-       rather than off the typed text â€” see LABEL_CUE. */
+       rather than off the typed text — see LABEL_CUE. */
     function cueArrows(clipLength, tok) {
       [[LABEL_CUE.down, f.arrowDown], [LABEL_CUE.up, f.arrowUp]].forEach(function (c) {
         if (!c[1]) return;
@@ -630,7 +647,7 @@ var Controllers = (function () {
       cueArrows(clipLength, tok);
       /* One clock for the whole line rather than a wait chained per character:
          each hop resolves on the first frame past its deadline, and 41 of those
-         roundings accumulate â€” the text was 0.36s behind the voice by "up",
+         roundings accumulate — the text was 0.36s behind the voice by "up",
          while the arrows, being a single wait each, were not. */
       return E.tween(total, 'Linear', function (u) {
         var t = u * total, k = shown;
@@ -895,7 +912,7 @@ var Controllers = (function () {
        value rather than the authored dropRestPos: those were hand-tuned object
        by object in Unity and ended up spread over 8px on the left pan and 11px
        on the right, so the item dropped into a slightly different spot in the
-       bowl on every level â€” the orange sat lowest, the ball highest. One value
+       bowl on every level — the orange sat lowest, the ball highest. One value
        puts every item in the same place. Scale and rotation stay per instance:
        they are properties of the artwork and neither moves the item's centre. */
     var REST_POS = [-9, 10];          // reference px, item centre within its marker
@@ -1010,7 +1027,7 @@ var Controllers = (function () {
       if (closest) { previewGame = null; closest.forceDrop(self); return; }
       endScalePreview();
       /* Sounded here rather than inside returnToOriginalPosition, which is also
-         what resetGame calls on every item when a level starts â€” that would
+         what resetGame calls on every item when a level starts — that would
          open each level with a chord of shrugs. */
       E.Sfx.play('putBack');
       self.returnToOriginalPosition();
@@ -1057,7 +1074,7 @@ var Controllers = (function () {
     n.el.addEventListener('pointerdown', function (ev) {
       if (!E.activeInHierarchy(self.node)) return;
       /* The level brain only calls disableAllDragging() once its Start runs,
-         which waits on the audio preload â€” until then the authored
+         which waits on the audio preload — until then the authored
          dragEnabled:1 would let a child drop items before the first
          instruction and desync the whole sequence. */
       if (!isStarted(f.tutorialController, 'WeightGameTutorialController')) return;
@@ -1072,7 +1089,7 @@ var Controllers = (function () {
 
     register(hostId, 'DraggableItem', function start() {
       /* Every item stands on the same counter, but the authored x wandered from
-         1.42 to 10.41 across the fourteen of them â€” the book sat left of its
+         1.42 to 10.41 across the fourteen of them — the book sat left of its
          plate, the ball right of it, the orange a shade left. Pin x to the
          offset nine of the fourteen already share. y is deliberately left as
          authored: a tall watermelon and a flat pencil need different heights
@@ -1134,7 +1151,7 @@ var Controllers = (function () {
 
     /* The authored left marker is not the same on every level: levels 1-2 put it
        at [11.18, 83] and levels 3-7 at [8.25, 98], so a placed item jumped 15px
-       up its pan the moment the level changed â€” on the left side only. Pin it to
+       up its pan the moment the level changed — on the left side only. Pin it to
        the pose five of the seven levels already share. The right marker is
        [0, 98] everywhere and is left exactly as authored; the two sides are not
        symmetrical in this scene and must not be derived from each other. */
@@ -1158,7 +1175,7 @@ var Controllers = (function () {
   }
 
   // =========================================================================
-  //  WeightMeasuringGame  (7 instances â€” drives the balance animation)
+  //  WeightMeasuringGame  (7 instances — drives the balance animation)
   // =========================================================================
   function WeightMeasuringGame(f, hostId) {
     var self = {
@@ -1177,7 +1194,7 @@ var Controllers = (function () {
        follows a beat later, the pans are derived from the beam's own animated
        value so they can never drift out of sync, and the whole thing settles
        exactly once. The poses below ARE the clips' end values, so the geometry
-       is unchanged â€” only the motion is. */
+       is unchanged — only the motion is. */
     var BEAM_MAX = 8, NEEDLE_MAX = 24;
     var POSE = {
       none:  { beam: 0,          needle: 0,           left: 18,  right: 18 },
@@ -1416,7 +1433,7 @@ var Controllers = (function () {
   }
 
   // =========================================================================
-  //  UltraSimpleWeightGame  (7 instances â€” public methods, no callers in the
+  //  UltraSimpleWeightGame  (7 instances — public methods, no callers in the
   //  original scene; kept so the component surface matches)
   // =========================================================================
   function UltraSimpleWeightGame(f, hostId) {
@@ -1442,7 +1459,7 @@ var Controllers = (function () {
   }
 
   // =========================================================================
-  //  WeightGameTutorialController  (7 instances â€” the level brain)
+  //  WeightGameTutorialController  (7 instances — the level brain)
   // =========================================================================
   function WeightGameTutorialController(f, hostId) {
     fixInstructionCopy(f);
@@ -1728,7 +1745,7 @@ var Controllers = (function () {
     }
 
     /* label1 is the "down" side and label2 the "up" side, so each is raised as
-       its own direction is spoken â€” timed off the clip rather than off the typed
+       its own direction is spoken — timed off the clip rather than off the typed
        text, which does not track the voice. See LABEL_CUE. */
     function cueLabels(clipLength, tok) {
       [[LABEL_CUE.down, f.label1], [LABEL_CUE.up, f.label2]].forEach(function (c) {
@@ -1760,7 +1777,7 @@ var Controllers = (function () {
       cueLabels(clipLength, tok);
       /* One clock for the whole line rather than a wait chained per character:
          each hop resolves on the first frame past its deadline, and 41 of those
-         roundings accumulate â€” the text was 0.36s behind the voice by "up",
+         roundings accumulate — the text was 0.36s behind the voice by "up",
          while the arrows, being a single wait each, were not. */
       return E.tween(total, 'Linear', function (u) {
         var t = u * total, k = shown;
@@ -1796,7 +1813,7 @@ var Controllers = (function () {
               if (f.gameOverPanel) E.setActive(f.gameOverPanel, true);
               /* Finishing the whole game should not sound like finishing one
                  level. A second shower, and over it a three-rung tally that
-                 climbs â€” the beat a child already reads as "you completed it".
+                 climbs — the beat a child already reads as "you completed it".
                  It runs ahead of the closing voice line and is quiet enough to
                  sit under it if the two overlap. */
               E.confetti(null);
@@ -1941,7 +1958,7 @@ var Controllers = (function () {
         })
         /* The original switched each counter off the instant its item was
            lifted, which left the item's own resting place missing while the
-           other item was still waiting to be dragged â€” and, because a returned
+           other item was still waiting to be dragged — and, because a returned
            item is reparented back onto its counter, made a return mid-level put
            the item inside a hidden object. Both now leave together in
            onItemDropped, once the second item is in its pan. */
@@ -1981,7 +1998,7 @@ var Controllers = (function () {
       E.addClickListener(f.tryAgainButton, onTryAgain);
 
       /* hintHand and itemHintHand live on the Canvas and are shared by all
-         seven levels, and the Next button only swaps level containers â€” this
+         seven levels, and the Next button only swaps level containers — this
          controller keeps running. Retire its timers on the way out, or a
          pending hint fires on the next level and drives the shared hands from
          this level's stale positions. */
@@ -1992,7 +2009,7 @@ var Controllers = (function () {
         stopGhost();
         /* Each level owns its own AudioSource, so a clip still playing here keeps
            sounding while the next level starts instruction 1 on a different
-           element â€” two voices at once, which reads as an echo. */
+           element — two voices at once, which reads as an echo. */
         src().stop();
         self.runner.stopAll();
       });
@@ -2010,7 +2027,7 @@ var Controllers = (function () {
     /* Loading a scene throws the old instances away, but a coroutine already in
        flight keeps its own closure alive: it goes on typing into a text object
        that no longer exists and, worse, starts its next line over the incoming
-       scene's â€” two voices at once, heard as an echo. Kill every runner first. */
+       scene's — two voices at once, heard as an echo. Kill every runner first. */
     reset: function () {
       Object.keys(COMP).forEach(function (name) {
         Object.keys(COMP[name]).forEach(function (id) {

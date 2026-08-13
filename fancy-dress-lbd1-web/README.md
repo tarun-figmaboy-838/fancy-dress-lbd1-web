@@ -411,20 +411,27 @@ line simply plays and nothing else runs.
 Where it is refused, the line is **not** handed to the next stray tap. Doing that
 is what kept the backdrop feeling like the trigger even after its button was
 retired: the child taps the picture, the line starts, and the picture looks
-responsible. Only Let's Go — the screen's one deliberate control — gets it, and
-the gameplay panel is then held until the line finishes, because the tutorial
-opens by speaking and overlapping the two loses both. Note the ordering: that
-button's authored persistent call is `Stop` on this very source, and the engine
-runs persistent calls before listeners, so the play lands after the stop.
+responsible.
 
-Measured, both policies:
+**It has a control of its own instead** — a speaker button, top-left, clear of
+both the artwork and Let's Go. It is built in `ButtonAnimator` rather than in
+`data.js` (it is not in the Unity scene, and `data.js` is regenerated), parented
+into the splash so it scales with the stage and leaves with it, and it is a real
+`<button>`, so unlike the sprite-and-div controls it takes keyboard focus and
+announces itself. Tapping it again restarts the line rather than layering a
+second copy over the first.
 
-| | plain browser (refused) | WebView (allowed) |
-|---|---|---|
-| at load | 1 attempt, refused | 1 play, honoured |
-| 3 taps on the backdrop | 0 plays, 0 press-dips | 0 plays, 0 press-dips |
-| tap Let's Go | +1 play | +0, already played |
-| gameplay panel opens after | 1.95 s | 0.33 s (authored delay) |
+That is also what lets the game start immediately: with a control that says what
+it does, there is no need to hold the tutorial back while the line plays on the
+way out.
+
+| action | result |
+|---|---|
+| 3 taps on the backdrop | 0 plays, 0 press-dips |
+| tap the speaker | plays the line |
+| tap it again | restarts, never layers |
+| tap Let's Go | game starts in 0.33 s, line silenced, button leaves |
+| button size at 1200×675 | 67 × 67 px |
 
 ## Hint timing
 
