@@ -138,11 +138,17 @@ var Controllers = (function () {
      the silent comma pause — and the cyan one at 4.95s, after "up" had finished,
      in the trailing silence. Neither ever coincided with the word it belongs to.
 
-     So the arrows are timed to the voice instead: each appears exactly as its
-     own direction is spoken. The values are read off the recording above, and
-     scale with the clip so a re-recorded line degrades sensibly rather than
-     firing past the end of a shorter one. */
-  var LABEL_CUE = { down: 1.75, up: 4.30, clip: 5.20 };
+     So the arrows are timed to the voice instead — and to the END of their own
+     word, not its start. The word is typed across the span it is spoken over
+     (see LINE7_SPANS), so an arrow cued to the start of the word appears on the
+     same frame as the word's first letter and the two read as one event. Cued to
+     the end, the child gets two beats: the voice says "down" and the word types
+     itself out, and then the arrow drops as the voice lands on it.
+
+     The values are read off the recording above, and scale with the clip so a
+     re-recorded line degrades sensibly rather than firing past the end of a
+     shorter one. */
+  var LABEL_CUE = { down: 2.16, up: 4.58, clip: 5.20 };
 
   /* The cue, rescaled if the clip is not the one it was measured against. */
   function cueAt(sec, clipLength) {

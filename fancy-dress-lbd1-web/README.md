@@ -347,21 +347,23 @@ silence.
 So instruction 7 is now driven by the recording rather than by a character
 count, in two parts.
 
-**The arrows** (`LABEL_CUE`, `cueAt`) are timed off the clip, so each appears as
-its own direction is spoken. **The line itself** (`LINE7_SPANS`, `charTimes`) has
-each word's characters spread across that word's own spoken span, with the gaps
-between words held — so the word lands on screen as the voice says it and as its
-arrow appears. All three now coincide:
+**The line itself** (`LINE7_SPANS`, `charTimes`) has each word's characters spread
+across that word's own spoken span, with the gaps between words held, so the word
+types itself out as the voice says it. **The arrows** (`LABEL_CUE`, `cueAt`) are
+timed off the clip to the *end* of their own word, so the child gets two beats
+rather than one: the voice says "down" and the word appears, and then the arrow
+drops onto it.
 
 | | before | after | voice says it at |
 |---|---|---|---|
-| red Heavier arrow | 2.44 s | **1.77 s** | 1.75–2.16 s |
-| word "down" on screen | 2.44 s | **2.04 s** | ″ |
-| cyan Lighter arrow | 5.00 s | **4.32 s** | 4.30–4.58 s |
-| word "up" on screen | 5.00 s | **4.46 s** | ″ |
+| word "down" on screen | 2.44 s | **2.04 s** | 1.75–2.16 s |
+| red Heavier arrow | 2.44 s | **2.16 s** | ″ |
+| word "up" on screen | 5.00 s | **4.46 s** | 4.30–4.58 s |
+| cyan Lighter arrow | 5.00 s | **4.58 s** | ″ |
 
-The arrow fires as its word begins and the word finishes typing as the voice
-finishes saying it.
+Cueing an arrow to the *start* of its word instead puts it on the same frame as
+the word's first letter, and the two read as a single event — which is why the
+end of the word is used.
 
 Both scale with the clip, and `charTimes` requires the line's word count to match
 the table — so a re-worded or translated line falls back to exactly the flat
