@@ -1,4 +1,4 @@
-# The Fancy Dress Competition — Heavy & Light (static web build)
+﻿# The Fancy Dress Competition — Heavy & Light (static web build)
 
 A dependency-free HTML/CSS/JS rebuild of the Unity project **Fancy Dress Lbd1**.
 No Unity, no WebGL build, no frameworks, no build step. Deploy the folder as-is.
@@ -306,6 +306,20 @@ timer still pending (they are armed with a 10s `arrowDelaySeconds`) would fire
 during the *next* level and place the shared hand using the previous level's
 coordinates. The Next handler now retires that controller's coroutines and
 hides both hands.
+
+## Hint timing
+
+All seven levels ship one `arrowDelaySeconds` of **10**, and it gates every hint
+a level has: the hand on Next / Try Again, the hand on the correct item, and the
+ghost drag demo. Measured end-to-end on level 1, the hand took 10.02 s to reach
+the Next button, and the drag demo usually never appeared at all â€” a child drops
+the item well before it is due.
+
+`HINT_DELAY` in `controllers.js` overrides it with **3 s**, and all three now
+fire at 3.00 s (measured). It lives there rather than in `data.js`, which is
+regenerated from the Unity project and would lose the change. The Tutorial scene
+has its own `hintDelay` of 1 s, is already faster, and is left as authored.
+
 
 ## One deliberate deviation from the original
 

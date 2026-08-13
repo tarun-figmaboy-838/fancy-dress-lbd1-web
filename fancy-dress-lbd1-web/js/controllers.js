@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
  *  controllers.js — one function per MonoBehaviour, ported line-by-line.
  *  State machines, delays, easings and edge cases follow the original C#.
  * ========================================================================== */
@@ -105,6 +105,20 @@ var Controllers = (function () {
      edge, rather than centred on it — 0.15 of the hand's own height, so it
      holds at either scale the two scenes use. */
   var BUTTON_HINT_DROP = 0.15;
+
+  /* How long a child sits doing nothing before a hand comes to help. All seven
+     levels ship arrowDelaySeconds = 10, and that one value gates every hint a
+     level has â€” the hand on Next / Try Again, the hand on the correct item, and
+     the ghost drag demo. Ten seconds of a screen that has stopped talking reads
+     as "nothing is happening" rather than "think", and the drag demo in
+     particular almost never appeared, because a child drops the item long
+     before it is due.
+
+     Overridden here rather than in data.js, which is regenerated from the Unity
+     project and would lose the change. One number: retune the whole game's hint
+     pacing by editing this line. The Tutorial scene has its own hintDelay (1s),
+     is already faster than this, and is left exactly as authored. */
+  var HINT_DELAY = 3;
 
   /* Put the hand's visible centre — not its node centre — on a stage point.
      dropFrac nudges it down by a fraction of its own height. */
@@ -1388,7 +1402,7 @@ var Controllers = (function () {
       if (self.bookDropped && self.ballDropped) return;
       var tok = self.runner.fresh('ghost');
       self.runner.run(function (t) {
-        return E.wait(f.arrowDelaySeconds, t).then(function () {
+        return E.wait(HINT_DELAY, t).then(function () {
           if (self.selectionLocked) return;
           if (self.bookDropped && self.ballDropped) return;
           decideAndShowGhost();
@@ -1408,7 +1422,7 @@ var Controllers = (function () {
     function startHintForButton(btnId) {
       var tok = self.runner.fresh('hint');
       self.runner.run(function (t) {
-        return E.wait(f.arrowDelaySeconds, t).then(function () {
+        return E.wait(HINT_DELAY, t).then(function () {
           if (btnId && E.activeInHierarchy(btnId)) {
             var p = E.stagePos(btnId);
             placeHand(f.hintHand, p[0], p[1], BUTTON_HINT_DROP);
@@ -1422,7 +1436,7 @@ var Controllers = (function () {
     function startItemHint() {
       var tok = self.runner.fresh('itemHint');
       self.runner.run(function (t) {
-        return E.wait(f.arrowDelaySeconds, t).then(function () {
+        return E.wait(HINT_DELAY, t).then(function () {
           if (self.selectionLocked || self.isInstructionPlaying) return;
           var bookIsCorrect = (f.correctAnswerMode === 0)
             ? f.bookWeight < f.ballWeight
@@ -1642,7 +1656,7 @@ var Controllers = (function () {
         self.bookDragStarted = false;
         var t1 = self.runner.fresh('leftArrow');
         self.runner.run(function (t) {
-          return E.wait(f.arrowDelaySeconds, t).then(function () {
+          return E.wait(HINT_DELAY, t).then(function () {
             if (!self.bookDragStarted && !self.bookDropped) showArrow(f.leftArrow);
           });
         }, t1);
@@ -1650,7 +1664,7 @@ var Controllers = (function () {
         self.ballDragStarted = false;
         var t2 = self.runner.fresh('rightArrow');
         self.runner.run(function (t) {
-          return E.wait(f.arrowDelaySeconds, t).then(function () {
+          return E.wait(HINT_DELAY, t).then(function () {
             if (!self.ballDragStarted && !self.ballDropped) showArrow(f.rightArrow);
           });
         }, t2);
