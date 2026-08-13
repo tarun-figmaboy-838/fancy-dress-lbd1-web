@@ -476,10 +476,23 @@ ghost drag demo. Measured end-to-end on level 1, the hand took 10.02 s to reach
 the Next button, and the drag demo usually never appeared at all — a child drops
 the item well before it is due.
 
-`HINT_DELAY` in `controllers.js` overrides it with **3 s**, and all three now
-fire at 3.00 s (measured). It lives there rather than in `data.js`, which is
-regenerated from the Unity project and would lose the change. The Tutorial scene
-has its own `hintDelay` of 1 s, is already faster, and is left as authored.
+`HINT_DELAY` in `controllers.js` overrides it. It lives there rather than in
+`data.js`, which is regenerated from the Unity project and would lose the change.
+The Tutorial scene has its own `hintDelay` of 1 s, is already faster, and is left
+as authored.
+
+**Two values, because the two moments are not alike.**
+
+| | delay | what precedes it |
+|---|---|---|
+| `tap` — Next, Try Again, the correct item, the finish button | **3 s** | a screen that has finished talking, where the child is already still |
+| `drag` — the ghost demo and the path arrows | **5 s** | *"Let us place the pencil on the balance"*, with the clock starting the instant the item becomes draggable |
+
+Three seconds after a finished screen is a long time. Three seconds after a fresh
+instruction is barely time to parse a new sentence, find the item and reach for
+it — the hand arrived while the child was still moving toward it, and the first
+drag is both the hardest thing in the game and the only one they have never done
+before. Measured: drag demo at 5.01 s, buttons at 3.00 s.
 
 **Counted from idle, not from the phase.** Those are different clocks, and the
 phase clock is the wrong one: a child who spends four seconds dragging an item

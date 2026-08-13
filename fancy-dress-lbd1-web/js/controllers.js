@@ -115,10 +115,18 @@ var Controllers = (function () {
      before it is due.
 
      Overridden here rather than in data.js, which is regenerated from the Unity
-     project and would lose the change. One number: retune the whole game's hint
-     pacing by editing this line. The Tutorial scene has its own hintDelay (1s),
-     is already faster than this, and is left exactly as authored. */
-  var HINT_DELAY = 3;
+     project and would lose the change. The Tutorial scene has its own hintDelay
+     (1s), is already faster than this, and is left exactly as authored.
+
+     Two values, because the two moments are not alike. `tap` follows a screen
+     that has finished talking and is waiting — the child is already still, and
+     three seconds of stillness is a long time. `drag` follows the instruction
+     "Let us place the pencil on the balance", with the clock starting the
+     instant the item becomes draggable: three seconds there is barely time to
+     parse a new sentence, find the item and reach for it, so the hand arrives
+     while they are still moving toward it. The first drag is also the hardest
+     thing in the game, and the only one they have never done before. */
+  var HINT_DELAY = { tap: 3, drag: 5 };
 
   /* ...and it is counted from the last thing the child did, not from the moment
      the phase opened. Those are different clocks: a child who spends four
@@ -1668,7 +1676,7 @@ var Controllers = (function () {
       if (self.bookDropped && self.ballDropped) return;
       var tok = self.runner.fresh('ghost');
       self.runner.run(function (t) {
-        return waitIdle(HINT_DELAY, t).then(function () {
+        return waitIdle(HINT_DELAY.drag, t).then(function () {
           if (self.selectionLocked) return;
           if (self.bookDropped && self.ballDropped) return;
           decideAndShowGhost();
@@ -1688,7 +1696,7 @@ var Controllers = (function () {
     function startHintForButton(btnId) {
       var tok = self.runner.fresh('hint');
       self.runner.run(function (t) {
-        return waitIdle(HINT_DELAY, t).then(function () {
+        return waitIdle(HINT_DELAY.tap, t).then(function () {
           if (btnId && E.activeInHierarchy(btnId)) {
             var p = E.stagePos(btnId);
             placeHand(f.hintHand, p[0], p[1], BUTTON_HINT_DROP);
@@ -1702,7 +1710,7 @@ var Controllers = (function () {
     function startItemHint() {
       var tok = self.runner.fresh('itemHint');
       self.runner.run(function (t) {
-        return waitIdle(HINT_DELAY, t).then(function () {
+        return waitIdle(HINT_DELAY.tap, t).then(function () {
           if (self.selectionLocked || self.isInstructionPlaying) return;
           var bookIsCorrect = (f.correctAnswerMode === 0)
             ? f.bookWeight < f.ballWeight
@@ -1830,7 +1838,7 @@ var Controllers = (function () {
     function startHintForElement(el) {
       var tok = self.runner.fresh('hint');
       self.runner.run(function (t) {
-        return waitIdle(HINT_DELAY, t).then(function () {
+        return waitIdle(HINT_DELAY.tap, t).then(function () {
           if (!el.parentNode) return;
           var r = el.getBoundingClientRect();
           var s = E.stage().getBoundingClientRect();
@@ -2007,7 +2015,7 @@ var Controllers = (function () {
         self.bookDragStarted = false;
         var t1 = self.runner.fresh('leftArrow');
         self.runner.run(function (t) {
-          return waitIdle(HINT_DELAY, t).then(function () {
+          return waitIdle(HINT_DELAY.drag, t).then(function () {
             if (!self.bookDragStarted && !self.bookDropped) showArrow(f.leftArrow);
           });
         }, t1);
@@ -2015,7 +2023,7 @@ var Controllers = (function () {
         self.ballDragStarted = false;
         var t2 = self.runner.fresh('rightArrow');
         self.runner.run(function (t) {
-          return waitIdle(HINT_DELAY, t).then(function () {
+          return waitIdle(HINT_DELAY.drag, t).then(function () {
             if (!self.ballDragStarted && !self.ballDropped) showArrow(f.rightArrow);
           });
         }, t2);
