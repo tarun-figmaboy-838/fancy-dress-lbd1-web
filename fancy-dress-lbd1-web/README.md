@@ -448,9 +448,40 @@ behaviour matches. If you want telemetry, the natural call sites are
 level-activation path in `main.js`; say the word and I'll wire them to the
 same `window.*` names with the same payload shapes.
 
+## Instruction copy
+
+`COPY_FIXES` in `controllers.js` rewrites the authored instruction text before a
+level types it. It lives there rather than in `data.js`, which is regenerated
+from the Unity project and would lose the edits. Only keys beginning
+`instruction` are touched, and the sibling `*Audio` keys are skipped — those are
+asset paths, not copy.
+
+| fix | why |
+|---|---|
+| `toycar` → `toy car` | Level 2's `instruction4` writes it as one word, while its own `instruction2` and the recording both say "toy car". |
+| `bus` → `toy bus` | Level 3 weighs a cricket ball against a **yellow toy bus** and called it "a bus". A real bus outweighs a cricket ball by tonnes, so a balance tipping toward the ball reads as nonsense to a child picturing the real vehicle. The artwork is unmistakably a toy; the copy was what was wrong. |
+
+The `bus` rule is `/(\btoy\s+)?\bbus\b/gi`, so it is idempotent — run over an
+already-corrected line it cannot produce "toy toy bus" — and `\b` keeps it off
+"busy" and "buses". No `itemData.itemName` contains "bus", and none is rewritten
+in any case: the ghost-drag hint matches on those names.
+
+**The recordings still say "bus".** Copy can be fixed in code; a voice-over
+cannot. Level 3's banner now reads "toy bus" while the narration says "bus", and
+closing that gap needs two clips re-recorded:
+
+| clip | line to record |
+|---|---|
+| `Here_is_a_ball_and_a_Bus.ogg` | "Here is a ball and a toy bus." |
+| `Let_us_place_the_Bus_on_the_balance.ogg` | "Let us place the toy bus on the balance." |
+
+Drop the new files in at the same paths and add their lengths to
+`js/audio-lengths.js` — the typing speed is `clipLength / characters`, and a
+missing entry makes the first play fall back to a metadata guess.
+
 ## One content observation
 
-Level 3 asks the child to tap the **heavier** item between a ball and a bus,
+Level 3 asks the child to tap the **heavier** item between a ball and a toy bus,
 and the correct answer is the **ball** (`bookWeight` 5 vs `ballWeight` 1). The
 balance tips the same way, so the level is internally consistent and it has
 been ported exactly as authored — flagging it only in case the sprite pair was

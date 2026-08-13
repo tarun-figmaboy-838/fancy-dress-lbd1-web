@@ -252,7 +252,20 @@ var Controllers = (function () {
      "toy car". Corrected here rather than in data.js, which is regenerated from
      the Unity project. Only the on-screen lines are touched; the sibling
      *Audio fields are asset paths and must keep their filenames. */
-  var COPY_FIXES = [[/\btoycar\b/gi, 'toy car']];
+  /* Level 3 weighs a cricket ball against a yellow toy bus and calls it "a
+     bus", which teaches the wrong thing: a real bus outweighs a cricket ball by
+     tonnes, so the balance tipping toward the ball reads as nonsense to a child
+     who pictures the real vehicle. The artwork is unmistakably a toy, so the
+     copy is what is wrong. The optional leading "toy" makes the rule idempotent
+     — running it over an already-corrected line cannot produce "toy toy bus" —
+     and \b stops it touching "busy" or a longer word. Only the on-screen lines
+     are rewritten; itemName is untouched (no item is named "bus", but the ghost
+     hint matches on those names) and so are the *Audio paths, which are
+     filenames. The recordings still say "bus" — see README. */
+  var COPY_FIXES = [
+    [/\btoycar\b/gi, 'toy car'],
+    [/(\btoy\s+)?\bbus\b/gi, 'toy bus']
+  ];
   function fixInstructionCopy(f) {
     Object.keys(f).forEach(function (k) {
       if (k.indexOf('instruction') !== 0 || typeof f[k] !== 'string') return;
