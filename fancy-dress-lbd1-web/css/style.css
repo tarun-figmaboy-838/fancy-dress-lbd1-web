@@ -173,6 +173,39 @@ body.dragging .un.btn.nointeract.draggable { cursor: grabbing; }
   .un.btn:not(.nointeract):hover.pressed { scale: .93; }
 }
 
+/* ---- a button that is waiting to be tapped ------------------------------- */
+/* Next and Try Again carry their artwork on the button node itself, so the
+   attract loop runs on the ::before sprite layer. That leaves the element's own
+   `scale` free for the press, and the two compose rather than one cancelling
+   the other — a CSS animation outranks the press declaration, so putting both
+   on the same property would mean a pulsing button could not be pressed.
+
+   Slow and shallow on purpose: it appears under an instruction the child may
+   still be listening to, and a hard pulse would pull the eye off the balance.
+   The shadow travels with the scale so the button reads as lifting off the
+   table rather than merely growing. */
+.un.btn.cta::before { animation: cta-breathe 1.7s ease-in-out infinite; }
+@keyframes cta-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .18)) brightness(1);
+  }
+  50% {
+    transform: scale(1.045);
+    filter: drop-shadow(0 7px 15px rgba(80, 190, 255, .55)) brightness(1.08);
+  }
+}
+/* the finger takes over the moment it lands */
+.un.btn.cta.pressed::before { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .un.btn.cta::before { animation: cta-glow 2.4s ease-in-out infinite; }
+  @keyframes cta-glow {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(1.11); }
+  }
+}
+
 /* Motion is the part that can be dropped; the brightness change carries the
    information, so it stays. */
 @media (prefers-reduced-motion: reduce) {

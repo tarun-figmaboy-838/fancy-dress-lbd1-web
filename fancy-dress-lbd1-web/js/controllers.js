@@ -199,6 +199,16 @@ var Controllers = (function () {
                       stageY - (HAND_ART.cy - 0.5) * h + (dropFrac || 0) * h);
   }
 
+  /* Next and Try Again are the only thing left to do when they appear, so they
+     breathe until they are used — otherwise they sit as still as the table and
+     a child who cannot read has nothing telling them where to go. Driven by a
+     class so the motion itself stays in CSS with the rest of it, and so it
+     cannot fight the press, which lives on a different property. */
+  function attract(id, on) {
+    var n = id && E.node(id);
+    if (n) n.el.classList.toggle('cta', !!on);
+  }
+
   /* Light the Heavier / Lighter label up in its own colour when it appears. */
   function glowLabel(id, isHeavy) {
     var node = E.node(id);
@@ -673,6 +683,7 @@ var Controllers = (function () {
       }).then(function () {
         E.setActive(f.tryAgainButton, true);
         E.setInteractable(f.tryAgainButton, true);
+        attract(f.tryAgainButton, true);
         startNewHintWithDelay(f.tryAgainButton);
         self.isInteractionLocked = false;
       });
@@ -685,6 +696,7 @@ var Controllers = (function () {
         .then(function () {
           E.setActive(f.nextButton, true);
           E.setInteractable(f.nextButton, true);
+          attract(f.nextButton, true);
           startNewHintWithDelay(f.nextButton);
         });
     }
@@ -727,6 +739,7 @@ var Controllers = (function () {
 
     function onTryAgainClicked() {
       stopNewHint();
+      attract(f.tryAgainButton, false);
       E.setActive(f.tryAgainButton, false);
       E.setActive(f.arrowUp, false);
       E.setActive(f.arrowDown, false);
@@ -747,6 +760,7 @@ var Controllers = (function () {
 
     function onNextButtonClicked() {
       stopNewHint(); stopBookHint();
+      attract(f.nextButton, false);
       E.setInteractable(f.nextButton, false);
       src().stop();
       self.runner.stopAll();
@@ -1760,6 +1774,7 @@ var Controllers = (function () {
             });
           }
           E.setActive(f.nextButton, true);
+          attract(f.nextButton, true);
           startHintForButton(f.nextButton);
         });
     }
@@ -1773,6 +1788,7 @@ var Controllers = (function () {
       else { E.setSprite(f.ballImage, f.ballWrongSprite); E.setNativeSize(f.ballImage); }
       return playInstruction7WithLabels(tok).then(function () {
         E.setActive(f.tryAgainButton, true);
+        attract(f.tryAgainButton, true);
         startHintForButton(f.tryAgainButton);
       });
     }
@@ -1804,6 +1820,7 @@ var Controllers = (function () {
     function onTryAgain() {
       hideArrow(f.hintHand);
       hideItemHint();
+      attract(f.tryAgainButton, false);
       E.setActive(f.tryAgainButton, false);
       E.setActive(f.label1, false);
       E.setActive(f.label2, false);
@@ -1928,6 +1945,7 @@ var Controllers = (function () {
       E.addClickListener(f.nextButton, function () {
         hideArrow(f.hintHand);
         hideItemHint();
+        attract(f.nextButton, false);
         stopGhost();
         /* Each level owns its own AudioSource, so a clip still playing here keeps
            sounding while the next level starts instruction 1 on a different

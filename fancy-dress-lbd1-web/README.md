@@ -327,6 +327,31 @@ a state it can only enter by tapping and holding; under `prefers-reduced-motion`
 the scale drops and the brightness change stays, since that is the half carrying
 the information.
 
+**The button that is waiting for you.** Next and Try Again are the only thing
+left to do when they appear, and they sat as still as the table — nothing told a
+child who cannot read where to go. Both now breathe on a `cta` class
+(`cta-breathe`, 1.7 s, scale 1 → 1.045 with the drop-shadow travelling with it so
+the button reads as lifting rather than merely growing), until the moment they
+are used.
+
+The loop runs on the `::before` sprite layer while the press stays on the
+element's `scale`, and that split is load-bearing: a CSS animation outranks a
+normal declaration, so putting both on one property would mean a pulsing button
+*could not be pressed*. Held, the pulse pauses and the press takes over. Under
+`prefers-reduced-motion` the movement drops to a brightness breath.
+
+Timings, measured on both buttons in both scenes:
+
+| | pulse | press | cursor | hand hint |
+|---|---|---|---|---|
+| level Next / Try Again | `cta-breathe` 1.7 s | `scale .93` | `pointer` | **3.00 s** |
+| tutorial Next / Try Again | `cta-breathe` 1.7 s | `scale .93` | `pointer` | 1.00 s |
+
+The Tutorial keeps its own authored 1 s hint delay — faster than the levels'
+three seconds, not slower, so it needs no change to satisfy "help within three
+seconds". The pulse stops the moment either button is tapped (`cta` removed), so
+nothing keeps moving after it has been used.
+
 **Cursor.** The hand appears on exactly what answers to it. Verified with
 `elementFromPoint` at the centre of every target, per phase, rather than by
 reading the stylesheet:
