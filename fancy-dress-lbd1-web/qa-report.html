@@ -308,6 +308,15 @@ li:last-child { margin-bottom: 0; }
   </header>
 
   <section class="method">
+    <h2>Live</h2>
+    <p>Everything below is deployed and open — no login, no access request.
+      <strong><a href="https://fancy-dress-lbd1-web.vercel.app">fancy-dress-lbd1-web.vercel.app</a></strong>
+      is the game; <span class="mono">/qa-report.html</span> is this page. Both serve from
+      <span class="mono">main</span>, so this report and the build it describes are always the same
+      commit — you are reading it from the thing it is about.</p>
+  </section>
+
+  <section class="method">
     <h2>How this was measured</h2>
     <p>Each pair below is a real frame from the game, captured by driving it with genuine pointer
       events in headless Chrome — dragging items, tapping answers — and freezing the exact moment.
@@ -481,20 +490,43 @@ li:last-child { margin-bottom: 0; }
           <caption>The two re-cut lines</caption>
           <thead><tr><th>File</th><th>Was</th><th>Now</th><th>&ldquo;toy&rdquo; lands at</th><th>Peak</th></tr></thead>
           <tbody>
-            <tr><td class="mono">Here_is_a_ball_and_a_toy_bus.wav</td><td class="num">3.673 s</td><td class="num now">4.146 s</td><td class="num">2.70&ndash;3.07 s</td><td class="num">0.990</td></tr>
-            <tr><td class="mono">Let_us_place_the_toy_bus_on_the_balance.wav</td><td class="num">3.999 s</td><td class="num now">4.392 s</td><td class="num">1.56&ndash;1.84 s</td><td class="num">0.948</td></tr>
+            <tr><td class="mono">Here_is_a_ball_and_a_toy_bus.wav</td><td class="num">3.673 s</td><td class="num now">4.193 s</td><td class="num">2.70&ndash;3.19 s</td><td class="num">0.969</td></tr>
+            <tr><td class="mono">Let_us_place_the_toy_bus_on_the_balance.wav</td><td class="num">3.999 s</td><td class="num now">4.399 s</td><td class="num">1.56&ndash;1.85 s</td><td class="num">0.948</td></tr>
           </tbody>
         </table>
       </div>
+      <div class="note">
+        <h2>The first cut stuttered &mdash; caught by ear, not by me</h2>
+        <p>Shipped, listened to, and reported back as glitchy. It was. Printing the envelope showed
+          the word &ldquo;bus&rdquo; starting, being cut off after about 20 ms with a step of 0.346,
+          and starting <em>again</em> 90 ms later:</p>
+        <p class="mono">3.15&nbsp; 0.418 &nbsp;&larr; &ldquo;bus&rdquo; starts<br>
+          3.16&nbsp; 0.733 &nbsp;step 0.346<br>
+          3.17&nbsp; 0.053 &nbsp;&larr; cut to silence<br>
+          &hellip;<br>
+          3.24&nbsp; 0.418 &nbsp;&larr; &ldquo;bus&rdquo; starts again</p>
+        <p>My fault, and an obvious one once it was drawn: the padding either side of the inserted
+          word was sliced from <span class="mono">target[cut&hellip;]</span> — the very span then
+          appended as the tail — so that audio was written <strong>twice</strong>, and it happened
+          to contain the onset of &ldquo;bus&rdquo;.</p>
+        <p>Every target sample is now used exactly once, and the padding comes from a genuinely
+          silent stretch of the same recording, located by scanning for the longest sub-threshold
+          run. Verified by autocorrelation across the splice: best self-similarity
+          <strong>0.817</strong> and <strong>0.875</strong>, where an exact repeat reads near 0.99 —
+          and by the envelope, which now shows one clean onset where there were two.</p>
+      </div>
       <div class="finding">
-        <p>The first one&rsquo;s level match pushed it to <strong>1.111 — clipping</strong>. Rather
-          than squash the word, the whole line is trimmed 1.00 dB: the sentence keeps its internal
-          balance exactly and loses a decibel against its neighbours, which is nothing.</p>
+        <p>Two things improved in the same pass. The gaps either side of the word are no longer a
+          guessed 100 ms — they reproduce what the actor actually leaves around &ldquo;toy&rdquo; in
+          the source (0.200 s / 0.087 s and 0.159 s / 0.098 s), so the phrase keeps his own timing.
+          And the level match is now capped so the word can never sit louder than the loudest thing
+          already in the sentence: that is what pushed the previous cut to 1.111 and forced a 1 dB
+          trim on the whole line. Gain is x1.017 rather than x1.188, peak 0.969, no trim at all.</p>
         <p><strong>The seams measure inaudible.</strong> The largest sample-to-sample step at either
-          join is 0.011&ndash;0.021, against 0.35&ndash;0.59 for the loudest step in the same file.
-          A seam three to five percent the size of steps the recording already contains cannot be
-          picked out. Typing pace barely moved either — 143.0 and 109.8 ms per character against
-          146.9 and 111.1 — so the lines still finish with the voice.</p>
+          join is 0.011&ndash;0.021, against 0.35&ndash;0.59 for the loudest step in the same file —
+          three to five percent the size of steps the recording already contains. Typing pace barely
+          moved either, 144.6 and 110.0 ms per character against 146.9 and 111.1, so the lines still
+          finish with the voice.</p>
       </div>
     </div>
   </article>
@@ -810,10 +842,12 @@ li:last-child { margin-bottom: 0; }
     <h2>What this pass does not cover</h2>
     <p>Stated plainly, because a report that only lists successes is not much use:</p>
     <ul>
-      <li><strong>I have never heard this game.</strong> Verification runs muted in headless Chrome.
-        Every cue is confirmed to fire, in the right order, at the right moment — and the spliced
-        voice lines measure clean — but whether any of it <em>sounds</em> right is a judgement only
-        a person with speakers can make. That is the one open item worth your time.</li>
+      <li><strong>I have never heard this game.</strong> Verification runs muted in headless
+        Chrome. Every cue is confirmed to fire, in the right order, at the right moment — but
+        whether it <em>sounds</em> right is a judgement only a person with speakers can make, and
+        that gap is not theoretical: the first cut of the spliced line passed every measurement I
+        had and was still audibly broken. It took someone listening to catch it. The remaining
+        sound cues have had no such pass.</li>
       <li><strong>Synthetic taps are not trusted gestures.</strong> Where a browser blocks autoplay,
         the once-only logic is proven but the audio itself cannot be unlocked headlessly.</li>
       <li><strong>The re-cut lines are a splice, not a performance.</strong> The word is the same
