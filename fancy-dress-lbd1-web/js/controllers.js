@@ -1760,6 +1760,38 @@ var Controllers = (function () {
       });
     }
 
+    /* The finish screen is a single image with no children and no controls at
+       all — measured: a child who completes the game is left on a screen with
+       nothing to tap, for good. The level's own Next button gets a second life
+       there rather than a new control being invented: it is already wired,
+       already sized, and already takes the press, the cursor and the hand hint.
+
+       It has to be reparented into the panel, which is the last sibling under
+       the level and would otherwise cover it. Bottom-right of the 1920x1080
+       panel, with the ring loop on top of the ordinary attract breathe. */
+    var END_NEXT_POS = [620, -433];
+
+    function showEndNext() {
+      var id = f.nextButton;
+      if (!id || !f.gameOverPanel) return;
+      E.setParent(id, f.gameOverPanel, false);
+      E.setAnchoredPos(id, END_NEXT_POS[0], END_NEXT_POS[1]);
+      E.setActive(id, true);
+      /* Level 7's Next button is authored at Image.color.a = 0 — invisible,
+         because in the original it is the last level and the button is never
+         shown. Activating it alone therefore places a fully transparent button:
+         the ring and the hand hint appeared over nothing at all. */
+      E.setImageAlpha(id, 1);
+      E.setInteractable(id, true);
+      attract(id, true);
+      var n = E.node(id);
+      if (n) n.el.classList.add('halo');
+      /* Nothing follows this game, so the only forward it has is round two.
+         Swap this one line for a host handoff if the app wants to move on. */
+      E.addClickListener(id, function () { Game.loadScene(0); });
+      startHintForButton(id);
+    }
+
     function playInstruction7WithLabels(tok) {
       self.isInstructionPlaying = true;
       E.setInteractable(f.bookButton, false);
@@ -1824,6 +1856,7 @@ var Controllers = (function () {
                   .then(function () { E.Sfx.play('star', { index: 2 }); });
               }, tok);
               if (f.finalVO) { var s = src(); s.stop(); s.setClip(f.finalVO); s.play(); }
+              showEndNext();
             });
           }
           E.setActive(f.nextButton, true);

@@ -369,6 +369,41 @@ than the transparent margin around it. A Button whose `interactable` flag is off
 is scenery for that moment and goes back to the plain arrow — the game toggles
 that flag constantly, and the cursor follows it.
 
+## The finish screen had no way out
+
+The game over panel is a single Image with no children, and measured on the real
+end screen there were **no interactable controls anywhere** — a child who
+completed all seven levels was stranded there permanently.
+
+Level 7's own Next button gets a second life rather than a new control being
+invented: it is already wired, sized, and already takes the press, the cursor and
+the hand hint. Three things were needed to make it usable:
+
+- **reparent it into the panel**, which is the last sibling under Level 7 and
+  would otherwise cover it;
+- park it bottom-right of the 1920×1080 panel;
+- **raise `Image.color.a`, which is authored at 0.** In the original this is the
+  last level and the button is never shown, so it was left invisible — activating
+  it alone placed a *fully transparent* button, and the ring and the hand hint
+  appeared over nothing at all.
+
+On top of the ordinary attract breathe it carries a ring loop: two rings
+travelling outward from one element's `box-shadow`, on `::after` so `::before` is
+left to the sprite and its scale, and the press to the element's own `scale`.
+Three animations on three properties, none cancelling another — the same reason
+the press could not live on `transform`. Held, the rings pause.
+
+Nothing follows this game, so tapping it starts round two; that is one line in
+`showEndNext` if the host app should be handed control instead.
+
+| | measured on the end screen |
+|---|---|
+| position | bottom-right, `pointer` cursor |
+| ring loop | `halo-out` 2.4 s infinite |
+| pressed | `scale .93`, rings paused |
+| hand hint | 2.98 s idle |
+| tapping it | `Lbd1` → `Tutorial`, playable again |
+
 ## Two soft-locks that had to be fixed
 
 **Try Again could not be answered.** `OnTryAgain` opened the item selection and
