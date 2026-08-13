@@ -662,15 +662,34 @@ already says "toy" in this game, in `Let_us_place_the_toy_car_on_the_balance` an
 are the same construction ("the toy *X* on the balance"), so the intonation
 transfers and the timbre matches by construction rather than by imitation.
 
-Cuts land in the silence between words, located from each clip's RMS envelope
-rather than by ear-guessing an offset; both seams get a 6 ms fade so no click is
-introduced; and the gap left around the inserted word reproduces the **100 ms**
-the actor leaves between "toy" and "car" in the source.
+Six things make it hold up rather than merely work:
 
-| new file | was | now | "toy" lands at |
-|---|---|---|---|
-| `Here_is_a_ball_and_a_toy_bus.wav` | 3.673 s | 4.103 s | 2.72–3.09 s |
-| `Let_us_place_the_toy_bus_on_the_balance.wav` | 3.999 s | 4.340 s | 1.58–1.87 s |
+1. **48 kHz**, matching every other line — a resampled insert sounds dull next to
+   its neighbours.
+2. **Only the speech is taken from the source.** The silence either side comes
+   from the *target*, so the room tone under the sentence never changes — that,
+   not the seam itself, is what usually gives a splice away.
+3. **Cuts land on zero crossings**, so there is no step to click on.
+4. **Level matched sentence-to-sentence** (not word-to-word), which keeps the
+   word's own prominence inside its phrase instead of flattening it.
+5. **DC offset removed** from the inserted span before it is placed.
+6. The gap after the word reproduces the **100 ms** the actor leaves between
+   "toy" and "car" in the source, so the phrase keeps his own rhythm.
+
+| new file | was | now | "toy" lands at | level | peak |
+|---|---|---|---|---|---|
+| `Here_is_a_ball_and_a_toy_bus.wav` | 3.673 s | 4.146 s | 2.70–3.07 s | +1.49 dB | 0.990 |
+| `Let_us_place_the_toy_bus_on_the_balance.wav` | 3.999 s | 4.392 s | 1.56–1.84 s | −0.16 dB | 0.948 |
+
+The first one's level match pushed it to **1.111 — clipping**. Rather than
+squash the word, the whole line is trimmed 1.00 dB: the sentence keeps its
+internal balance exactly and loses a decibel against its neighbours, which is
+nothing.
+
+**The seams measure inaudible.** The largest sample-to-sample step at either
+join is 0.011–0.021, against 0.35–0.59 for the loudest step in the same file —
+a seam three to five percent the size of steps the recording already contains
+cannot be picked out.
 
 `AUDIO_FIXES` in `controllers.js` remaps the two paths, for the same reason
 `COPY_FIXES` lives there — `data.js` is regenerated. `main.js` collects the clips
